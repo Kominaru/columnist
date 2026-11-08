@@ -3,16 +3,16 @@
 
 const $ = (id) => document.getElementById(id);
 const CATS = [
-  ["Chordjack", "Rice", "#ff6b5b"], ["Streams", "Rice", "#ffb03d"], ["Jumpstream/Handstream", "Rice", "#ff8a3d"],
-  ["Technical", "Rice", "#ffd166"], ["Release", "LN", "#40c9c0"], ["Coordination", "LN", "#4aa8ff"],
-  ["Density/Inverse", "LN", "#7be0d0"], ["Reading", "SV", "#a98bff"], ["Memo", "SV", "#e08bff"],
+  ["Chordjack", "Rice", "#e8503a"], ["Streams", "Rice", "#f08a4b"], ["Jumpstream/Handstream", "Rice", "#d9402f"],
+  ["Technical", "Rice", "#f5b87a"], ["Release", "LN", "#2fb584"], ["Coordination", "LN", "#3fbfd0"],
+  ["Density/Inverse", "LN", "#7fe0bb"], ["Reading", "SV", "#b680dc"], ["Memo", "SV", "#d9a2f0"],
 ];
 const SHORT = { "Jumpstream/Handstream": "Jump/Handstream", "Density/Inverse": "LN Density/Inverse" };
-const SLOTS = [["RC", "Rice", "#ff8a3d"], ["LN", "LN", "#40c9c0"], ["HB", "Hybrid", "#ffd166"], ["SV", "SV", "#a98bff"]];
+const SLOTS = [["RC", "Rice", "#e8503a"], ["LN", "LN", "#2fb584"], ["HB", "Hybrid", "#f2b53c"], ["SV", "SV", "#b680dc"]];
 const LOCAL = {
   jack: ["Jack", "#ff5b6b"], chordjack: ["Chordjack", "#ff2f7d"], stream: ["Stream", "#ffb03d"],
-  jumpstream: ["Jumpstream", "#ff8a3d"], handstream: ["Handstream", "#ff6a2a"], trill: ["Trill", "#c6e86b"],
-  ln: ["Long note", "#40c9c0"], chord: ["Chord", "#b9a6ff"], single: ["Single", "#d7dbe6"],
+  jumpstream: ["Jumpstream", "#ef6a45"], handstream: ["Handstream", "#d9402f"], trill: ["Trill", "#c6e86b"],
+  ln: ["Long note", "#2fb584"], chord: ["Chord", "#c9a8ee"], single: ["Single", "#d7dbe6"],
 };
 const COLS4 = ["#e7e9ee", "#6fb8ff", "#6fb8ff", "#e7e9ee"];
 
@@ -402,7 +402,7 @@ function drawField(t) {
   const W = field.width, H = field.height, c = S.chart, K = c.keys;
   fctx.clearRect(0, 0, W, H);
   const hasBg = document.querySelector(".fieldwrap").classList.contains("bg");
-  fctx.fillStyle = hasBg ? "rgba(10,12,16,0.84)" : "#0a0c10";
+  fctx.fillStyle = hasBg ? "rgba(10,18,51,0.84)" : "#0a1233";
   fctx.fillRect(0, 0, W, H);
   const laneW = Math.min(W * 0.9 / K, 90 * DPR), x0 = (W - laneW * K) / 2;
   const hitY = H - 70 * DPR, ppm = pxPerMs(), X = S.X, xt = X(t);
@@ -457,8 +457,8 @@ function drawField(t) {
     fctx.stroke();
     if (glow[k] > 0) {
       const g = fctx.createLinearGradient(0, hitY - 200 * DPR, 0, hitY);
-      g.addColorStop(0, "rgba(255,138,61,0)");
-      g.addColorStop(1, `rgba(255,138,61,${0.28 * glow[k]})`);
+      g.addColorStop(0, "rgba(232,80,58,0)");
+      g.addColorStop(1, `rgba(232,80,58,${0.28 * glow[k]})`);
       fctx.fillStyle = g;
       fctx.fillRect(x0 + k * laneW, hitY - 200 * DPR, laneW, 200 * DPR);
     }
@@ -474,7 +474,7 @@ function drawField(t) {
     const strong = p >= peakCut(name);
     const label = (SHORT[name] || name) + (strong ? " ●" : "");
     const w = fctx.measureText(label).width + 16 * DPR;
-    fctx.fillStyle = "rgba(10,12,16,0.75)";
+    fctx.fillStyle = "rgba(10,18,51,0.75)";
     roundRect(8 * DPR, yy, w, 20 * DPR, 10 * DPR);
     fctx.fillStyle = col;
     fctx.fillText(label, 16 * DPR, yy + 14 * DPR);
@@ -567,7 +567,7 @@ function drawTimeline(t) {
   const win = noteMode() ? TRAIL_MS : W().win_ms;
   tctx.fillStyle = "rgba(255,255,255,0.07)";
   tctx.fillRect(g.sx(t - win), 0, g.sx(t) - g.sx(t - win), g.H);
-  tctx.fillStyle = "#ff8a3d";
+  tctx.fillStyle = "#e8503a";
   tctx.fillRect(g.sx(t) - DPR, 0, 2 * DPR, g.H);
 }
 tl.addEventListener("click", (e) => {
