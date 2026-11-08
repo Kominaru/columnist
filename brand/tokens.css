@@ -1,0 +1,16 @@
+/* Columnist tokens, v2 "painted temple". Colours defined in OKLCH-ish hex; ground is lapis, text is lime plaster. */
+:root {
+  --color-ground: #101c44;      /* lapis night */
+  --color-ground-raised: #182a63;
+  --color-rule: #31438a;
+  --color-plaster: #f3eddc;     /* text on ground, the stone itself */
+  --color-plaster-dim: #b9b29b; /* secondary text */
+  --color-ink: #0d1530;         /* text on plaster */
+  --color-rice: #e8503a;        /* cinnabar */
+  --color-ln: #2fb584;          /* malachite */
+  --color-sv: #b680dc;          /* amethyst */
+  --color-hybrid: #f2b53c;      /* ochre */
+  --font-wordmark: "Marcellus", "Trajan Pro", serif;  /* carved capitals, wordmark and big titles only */
+  --font-body: "Hanken Grotesk", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+}
