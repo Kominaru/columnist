@@ -1,0 +1,34 @@
+\begin{table*}[t]
+\centering\small
+\caption{User tags. Average precision on the strict out-of-fold labels (song-grouped 5-fold CV over all charts). pos./known: positive and labelled charts. gbm+win is the reference boosted head; the four components are averaged into the ensemble. Bold: best learned model. $^\dagger$\,\SV{} heads, for which the boosted component uses the reading and MinaCalc features.}
+\label{tab:v2-tags}
+\begin{tabular}{lrrccccccc}
+\toprule
+& & & & & \multicolumn{4}{c}{components} & \\ \cmidrule(lr){6-9}
+Task & pos. & known & rule & gbm+win & boosted & MLP & deep & wide\,\&\,deep & ensemble \\
+\midrule
+\utag{style/jumpstream} & 945 & 3276 & 0.538 & 0.718 & 0.736 & 0.735 & 0.742 & 0.747 & \textbf{0.748} \\
+\utag{style/handstream} & 298 & 3199 & 0.179 & 0.503 & 0.521 & 0.534 & 0.529 & 0.536 & \textbf{0.545} \\
+\utag{style/chordstream} & 479 & 3324 & 0.481 & 0.561 & 0.581 & 0.592 & 0.586 & 0.591 & \textbf{0.596} \\
+\utag{style/quadstream} & 36 & 3218 & 0.091 & 0.077 & 0.115 & 0.147 & \textbf{0.164} & 0.158 & 0.153 \\
+\utag{style/chordjack} & 1020 & 3420 & 0.804 & 0.850 & 0.860 & 0.863 & 0.867 & 0.865 & \textbf{0.868} \\
+\utag{skillset/speedjack} & 743 & 3297 & 0.531 & 0.625 & 0.651 & 0.632 & 0.657 & 0.661 & \textbf{0.672} \\
+\utag{style/longjack} & 214 & 3211 & 0.243 & 0.477 & 0.494 & 0.502 & 0.495 & 0.523 & \textbf{0.526} \\
+\utag{skillset/wristjack} & 310 & 3200 & 0.377 & 0.368 & 0.385 & 0.408 & 0.401 & 0.404 & \textbf{0.410} \\
+\utag{skillset/streams} & 958 & 3327 & 0.479 & 0.585 & 0.610 & 0.624 & 0.623 & 0.631 & \textbf{0.633} \\
+\utag{streams/speed} & 675 & 3261 & 0.263 & 0.522 & 0.547 & 0.549 & 0.542 & 0.554 & \textbf{0.564} \\
+\utag{streams/stamina} & 1228 & 3294 & 0.622 & 0.794 & 0.802 & 0.800 & 0.797 & 0.802 & \textbf{0.808} \\
+\utag{skillset/tech} & 684 & 3352 & 0.566 & 0.715 & 0.732 & 0.749 & 0.748 & 0.757 & \textbf{0.760} \\
+\utag{style/LN density} & 324 & 3269 & 0.630 & 0.613 & 0.639 & 0.654 & \textbf{0.665} & \textbf{0.665} & 0.663 \\
+\utag{style/LN release} & 342 & 3349 & 0.368 & 0.718 & 0.732 & 0.717 & \textbf{0.744} & 0.733 & 0.742 \\
+\utag{style/LN coordination} & 722 & 3489 & 0.584 & 0.750 & 0.769 & 0.781 & \textbf{0.790} & 0.783 & 0.789 \\
+\utag{gimmick/LN inverse} & 209 & 3247 & 0.384 & 0.450 & 0.490 & 0.530 & \textbf{0.541} & 0.534 & 0.532 \\
+\utag{style/generic hybrid} & 421 & 3348 & 0.316 & 0.582 & 0.616 & 0.627 & 0.625 & 0.622 & \textbf{0.638} \\
+\utag{sliders/complex sv}$^\dagger$ & 247 & 3304 & 0.894 & 0.909 & 0.919 & \textbf{0.925} & 0.900 & 0.907 & 0.921 \\
+\utag{sliders/low sv}$^\dagger$ & 183 & 3268 & 0.312 & 0.533 & 0.643 & 0.641 & 0.610 & 0.643 & \textbf{0.663} \\
+\utag{sliders/high sv}$^\dagger$ & 141 & 3256 & 0.387 & 0.418 & 0.470 & \textbf{0.482} & 0.468 & 0.457 & \textbf{0.482} \\
+\midrule
+Mean & & & 0.452 & 0.588 & 0.616 & 0.625 & 0.625 & 0.629 & \textbf{0.636} \\
+\bottomrule
+\end{tabular}
+\end{table*}

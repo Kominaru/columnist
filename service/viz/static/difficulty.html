@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Difficulty · Columnist</title>
+<meta name="description" content="Estimate the difficulty of an osu!mania 4K chart and read its patterns.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314161c'/%3E%3Crect x='5' y='6' width='4' height='8' rx='2' fill='%23ff8a3d'/%3E%3Crect x='11' y='12' width='4' height='8' rx='2' fill='%2340c9c0'/%3E%3Crect x='17' y='9' width='4' height='14' rx='2' fill='%23a98bff'/%3E%3Crect x='23' y='18' width='4' height='8' rx='2' fill='%23ffd166'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .nav { display: flex; gap: 6px; margin-left: auto; }
+  .nav a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 9px; border: 1px solid transparent; }
+  .nav a.on, .nav a:hover { color: var(--text); border-color: var(--line); background: var(--card); }
+  .hero { max-width: 760px; margin: 28px auto 8px; }
+  .hero h1 { font-size: 26px; margin: 0 0 6px; }
+  .opts2 { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+  .sel { margin: 14px 0; padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+  .sel button { margin: 4px 6px 0 0; }
+  .qcard { margin: 22px auto 10px; max-width: 980px; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); }
+  .qcard b { font-size: 17px; }
+  table { width: 100%; max-width: 980px; margin: 0 auto; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); min-width: 70px; }
+  .bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+  a { color: var(--accent2); text-decoration: none; } a:hover { text-decoration: underline; }
+  .err { color: #ff7b7b; margin-top: 10px; }
+  .spin2 { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: sp 0.8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo"></span><b>Columnist</b><span class="sub">osu!mania 4K</span></div>
+  <nav class="nav"><a href="/">Player</a><a href="/similar">Similar charts</a><a href="/difficulty" class="on">Difficulty</a><a href="/about">About</a></nav>
+</header>
+<main>
+  <div class="hero">
+    <h1>How hard is this chart, and what is in it?</h1>
+    <p class="muted">Paste a beatmap link or id. The Columnist joint model gives a star-like difficulty (about 0.33 stars typical error against official ratings), the pattern labels it sees, and a difficulty-over-time curve. No BPM or snap information is used.</p>
+    <form id="f" class="load" style="margin-top:14px">
+      <input id="u" type="text" placeholder="https://osu.ppy.sh/beatmapsets/123456#mania/987654" autocomplete="off">
+      <button type="submit">Analyse</button>
+      <label class="filebtn">Upload .osu<input id="file" type="file" accept=".osu"></label>
+    </form>
+    <div class="opts2"><span id="stat"></span></div>
+    <div id="choose" class="sel hidden"></div>
+    <div id="err" class="err"></div>
+  </div>
+  <div id="out"></div>
+</main>
+<footer class="foot muted">Difficulty is a ranking score mapped to stars; it is not an official star rating. Pattern probabilities are for ranking, not calibrated. 4K only.</footer>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mmss = s => Math.floor(s / 60) + ":" + String(Math.round(s % 60)).padStart(2, "0");
+async function call(url, opt) { const r = await fetch(url, opt); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.detail || r.statusText); return j; }
+function busy(on) { $("stat").innerHTML = on ? '<span class="spin2"></span>Analysing the chart…' : ""; }
+function curveSvg(c) {
+  if (!c.length) return "";
+  const W = 900, H = 120, mx = Math.max(...c.map(p => p.d)), mn = Math.min(...c.map(p => p.d)), T = c[c.length - 1].t || 1;
+  const pts = c.map(p => `${(p.t / T * W).toFixed(1)},${(H - 8 - (p.d - mn) / (mx - mn || 1) * (H - 16)).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:980px;background:var(--card);border:1px solid var(--line);border-radius:10px"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>`;
+}
+function show(j) {
+  $("choose").classList.add("hidden");
+  const ch = j.chart, on = j.tasks.filter(t => t.on), cats = j.tasks.filter(t => !t.name.startsWith("tag:"));
+  let h = `<div class="qcard"><b>${esc(ch.artist)} – ${esc(ch.title)} [${esc(ch.version)}]</b> <span class="muted">· ${esc(ch.mapper || "")}</span><br>
+    <span style="font-size:28px;font-weight:700">${j.stars == null ? "–" : j.stars.toFixed(2)}★</span> <span class="muted">estimated · hardest section ${mmss(j.hardest.from_s)}–${mmss(j.hardest.to_s)}</span><br>
+    <span class="muted">Detected: ${on.length ? on.map(t => esc(t.name.replace("tag:", ""))).join(", ") : "none above threshold"}</span></div>`;
+  h += `<div style="max-width:980px;margin:12px auto"><div class="muted" style="margin-bottom:4px">Difficulty over time</div>${curveSvg(j.curve)}</div>`;
+  h += '<div class="tablewrap"><table><thead><tr><th>Label</th><th>Probability</th><th></th></tr></thead><tbody>';
+  j.tasks.forEach(t => { h += `<tr><td>${esc(t.name.replace("tag:", ""))}${t.name.startsWith("tag:") ? ' <span class="muted">tag</span>' : ""}</td><td style="width:50%"><div class="bar"><i style="width:${Math.round(t.prob * 100)}%"></i></div></td><td>${t.on ? "●" : ""}</td></tr>`; });
+  $("out").innerHTML = h + "</tbody></table></div>";
+}
+async function go(text, file, bid) {
+  $("err").textContent = ""; busy(true);
+  try {
+    let j;
+    if (file) { const fd = new FormData(); fd.append("file", file); j = await call("/api/difficulty/upload", { method: "POST", body: fd }); }
+    else j = await call("/api/difficulty", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: text || "", beatmap_id: bid || null }) });
+    if (j.choose) {
+      $("choose").classList.remove("hidden");
+      $("choose").innerHTML = `<b>${esc(j.title)}</b><div class="muted">Which 4K difficulty?</div>` + j.choose.map(c => `<button data-b="${c.beatmap_id}">${esc(c.version)}${c.stars ? " · " + Number(c.stars).toFixed(2) + "★" : ""}</button>`).join("");
+      $("choose").querySelectorAll("button").forEach(b => b.onclick = () => go("", null, +b.dataset.b));
+    } else show(j);
+  } catch (e) { $("err").textContent = e.message; }
+  busy(false);
+}
+$("f").onsubmit = e => { e.preventDefault(); if ($("u").value.trim()) go($("u").value); };
+$("file").onchange = e => { if (e.target.files[0]) go(null, e.target.files[0]); };
+const p = new URLSearchParams(location.search); if (p.get("b")) go("", null, +p.get("b"));
+</script>
+</body>
+</html>

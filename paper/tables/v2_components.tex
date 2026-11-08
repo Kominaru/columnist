@@ -1,0 +1,24 @@
+\begin{table}[t]
+\centering\small
+\caption{Mean AP of each component alone and of the ensemble without it. The four components are averaged with equal weights; nothing is fitted on the evaluation folds.}
+\label{tab:v2-components}
+\begin{tabular}{lcc}
+\toprule
+Model & Categories & Tags \\
+\midrule
+gbm+win (reference) & 0.719 & 0.588 \\
+\midrule
+boosted alone & 0.749 & 0.616 \\
+MLP alone & 0.747 & 0.625 \\
+deep alone & 0.751 & 0.625 \\
+wide\,\&\,deep alone & 0.762 & 0.629 \\
+ensemble of the four & 0.768 & 0.636 \\
+\midrule
+\quad without boosted & 0.765 & 0.636 \\
+\quad without MLP & 0.767 & 0.634 \\
+\quad without deep & 0.766 & 0.633 \\
+\quad without wide\,\&\,deep & 0.766 & 0.635 \\
+\quad \SV{} heads: boosted without reading & 0.756 & 0.635 \\
+\bottomrule
+\end{tabular}
+\end{table}

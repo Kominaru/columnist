@@ -1,0 +1,17 @@
+\begin{table}[H]
+\centering\footnotesize
+\caption{The 71 chart statistics by family, as named in the released code.}
+\label{tab:features}
+\begin{tabular}{lp{0.78\textwidth}}
+\toprule
+Family & Features \\
+\midrule
+Meta (5) & \texttt{keys}, \texttt{od}, \texttt{hp}, \texttt{notes}, \texttt{duration\_s} \\
+Density (10) & \texttt{nps}, \texttt{nps\_per\_key}, \texttt{nps\_p50}, \texttt{nps\_p90}, \texttt{nps\_max}, \texttt{nps\_peak\_ratio}, \texttt{stamina}, \texttt{density\_cv}, \texttt{breaks}, \texttt{rows\_ps} \\
+Chords/jacks/streams (22) & \texttt{notes\_per\_row}, \texttt{row\_single}, \texttt{row\_jump}, \texttt{row\_hand}, \texttt{row\_quad}, \texttt{row\_chord\_frac\_of\_keys}, \texttt{row\_full}, \texttt{jack\_row}, \texttt{jack\_note}, \texttt{chordjack\_row}, \texttt{full\_jack\_row}, \texttt{stream\_row}, \texttt{jumpstream\_row}, \texttt{handstream\_row}, \texttt{jack\_gap\_ms}, \texttt{row\_gap\_ms\_p10}, \texttt{row\_gap\_ms\_p50}, \texttt{jack\_chain3}, \texttt{jack\_longest}, \texttt{trill\_row}, \texttt{col\_imbalance}, \texttt{anchor} \\
+Rhythm (14) & \texttt{snap\_1/2}, \texttt{snap\_1/4}, \texttt{snap\_1/8}, \texttt{snap\_1/16}, \texttt{snap\_1/3}, \texttt{snap\_1/6}, \texttt{snap\_1/12}, \texttt{snap\_other}, \texttt{snap\_triplet}, \texttt{snap\_fine}, \texttt{rhythm\_variety}, \texttt{gap\_ratio\_change}, \texttt{bpm\_main}, \texttt{bpm\_changes} \\
+Long notes (11) & \texttt{ln\_ratio}, \texttt{ln\_count\_ps}, \texttt{ln\_len\_ms\_p50}, \texttt{ln\_len\_beats\_p50}, \texttt{ln\_short}, \texttt{ln\_long}, \texttt{ln\_hold\_cov}, \texttt{ln\_inverse}, \texttt{ln\_release\_offgrid}, \texttt{ln\_held\_mean}, \texttt{has\_ln} \\
+Scroll speed (9) & \texttt{sv\_points}, \texttt{sv\_points\_ps}, \texttt{sv\_log\_std}, \texttt{sv\_off\_frac}, \texttt{sv\_far\_frac}, \texttt{sv\_stop\_frac}, \texttt{sv\_fast\_frac}, \texttt{sv\_changes\_ps}, \texttt{sv\_changes\_near\_notes\_ps} \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,8 @@
+# Update of a running Pattern Lens image: new code plus the similar-charts index (data/similar -> models/similar).
+# Build context: the folders osu_patterns/, service/viz/ and models/similar/ (trim the rest).
+FROM pattern-lens:latest
+USER root
+COPY osu_patterns /app/osu_patterns
+COPY service/viz /app/service/viz
+COPY models/similar /app/models/similar
+USER lens

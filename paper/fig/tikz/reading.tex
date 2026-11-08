@@ -1,0 +1,45 @@
+\begin{tikzpicture}[x=0.68cm]
+% ---------- top: effective scroll speed s(t) ----------
+\def\sy{1.0}
+\begin{scope}[yshift=4.35cm]
+\draw[->, muted] (0,0) -- (11.4,0) node[lbl, right] {$t$};
+\draw[->, muted] (0,0) -- (0,1.75) node[lbl, above] {$s(t)$};
+\draw[muted!40, densely dotted] (0,\sy) -- (11,\sy);
+\node[lbl, left] at (0,\sy) {1};
+\fill[rule!12] (5,0) rectangle (5.3,1.55);
+\fill[deep!10] (8,0) rectangle (9,1.55);
+\draw[model, line width=1pt] (0,\sy) -- (3,\sy) -- (3,0.25*\sy) -- (5,0.25*\sy) -- (5,1.5) (5.3,1.5) -- (5.3,\sy) -- (8,\sy) -- (8,0.05*\sy) -- (9,0.05*\sy) -- (9,\sy) -- (11,\sy);
+\draw[model, line width=1pt, densely dashed] (5,1.5) -- (5.3,1.5);
+\node[lbl, above, text=rule] at (5.15,1.5) {teleport ($4\times$)};
+\node[lbl, above] at (4.0,0.25) {slow ($0.25\times$)};
+\node[lbl, above, text=deep] at (8.5,0.05) {freeze};
+\end{scope}
+% ---------- bottom: scroll position x(t) ----------
+\begin{scope}[y=0.36cm]
+\draw[->, muted] (0,0) -- (11.4,0) node[lbl, right] {$t$};
+\draw[->, muted] (0,0) -- (0,10.3) node[lbl, above] {$x(t)=\int_0^t s$};
+\fill[rule!12] (5,0) rectangle (5.3,10);
+\fill[deep!10] (8,0) rectangle (9,10);
+% the screen height for the highlighted note (hit at T=6)
+\fill[model!10] (0,3.4) rectangle (6,5.4);
+\draw[model, densely dashed] (0,5.4) node[lbl, left, text=model] {$x(T)$} -- (6,5.4);
+\draw[model, densely dashed] (0,3.4) node[lbl, left, text=model] {$x(T)-H$} -- (4.6,3.4);
+\draw[model!80!black, <->] (0.35,3.4) -- node[lbl, right, text=model] {$H$} (0.35,5.4);
+\draw[model, densely dashed] (4.6,3.4) -- (4.6,0);
+\draw[model, densely dashed] (6,5.4) -- (6,0);
+\draw[model, |-|, line width=0.8pt] (4.6,-0.9) -- node[lbl, below, text=model] {on screen $0.7H$} (6,-0.9);
+% the curve
+\draw[muted!80!black, line width=1pt] (0,0) -- (3,3) -- (5,3.5) -- (5.3,4.7) -- (8,7.4) -- (9,7.45) -- (11,9.45);
+% notes
+\foreach \T/\X in {1.5/1.5, 4.0/3.25, 4.5/3.375, 6.0/5.4, 7.0/6.4, 9.5/7.95, 10.5/8.95}
+  \fill[muted!80!black] (\T,\X) circle (1.6pt);
+\fill[model] (6,5.4) circle (2.2pt);
+% stacked pair
+\draw[muted, densely dotted] (4.0,3.25) -- (4.0,1.6) (4.5,3.375) -- (4.5,1.6);
+\node[lbl, align=center] at (3.6,1.15) {stacked: $\Delta x/\Delta t=0.25$};
+% the freeze while note 9.5 is visible: its onset
+\draw[deep, densely dashed] (6.55,5.95) -- (9.5,5.95);
+\draw[deep, densely dashed] (9.5,7.95) -- (9.5,5.95);
+\node[lbl, text=deep, align=left, anchor=west] at (9.6,6.9) {freeze while\\on screen};
+\end{scope}
+\end{tikzpicture}

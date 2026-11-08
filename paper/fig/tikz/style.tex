@@ -1,0 +1,17 @@
+% shared colours and TikZ styles for the paper's figures
+\definecolor{model}{HTML}{2a78d6}
+\definecolor{rule}{HTML}{eb6834}
+\definecolor{muted}{HTML}{52514e}
+\definecolor{deep}{HTML}{7b4fc2}
+\definecolor{sup}{HTML}{1a9a7a}
+\definecolor{faint}{HTML}{e9e8e4}
+\tikzset{
+  >={Stealth[length=4pt]},
+  box/.style={draw=muted, rounded corners=2pt, align=center, inner sep=3pt, fill=white, font=\footnotesize},
+  arr/.style={->, draw=muted, line width=0.6pt},
+  note/.style={draw=muted!60!black, fill=muted!75, rounded corners=0.6pt, minimum width=0.42cm, minimum height=0.11cm, inner sep=0pt},
+  lnbody/.style={draw=muted!60!black, fill=muted!25, rounded corners=0.6pt},
+  lbl/.style={font=\scriptsize, text=muted, align=left},
+  cell/.style={draw=muted!50, minimum size=0.17cm, inner sep=0pt},
+  on/.style={fill=muted!80},
+}

@@ -1,0 +1,31 @@
+\begin{table}[H]
+\centering\footnotesize
+\caption{Hyperparameters of the category and tag models.}
+\label{tab:hparams}
+\setlength\tabcolsep{4pt}
+\begin{tabular}{p{0.22\textwidth}p{0.7\textwidth}}
+\toprule
+\multicolumn{2}{l}{\textbf{Boosted heads} (scikit-learn \texttt{HistGradientBoostingClassifier})} \\
+trees & 200 iterations, learning rate 0.05, 15 leaves, $\ge10$ samples per leaf, $\ell_2$ 1.0, balanced class weights \\
+labels & strict; or strict + relaxed at weight 0.5 \\
+\midrule
+\multicolumn{2}{l}{\textbf{MLP student}} \\
+network & input dropout 0.1, $512\to256$ GELU, dropout 0.3 \\
+training & AdamW, lr $10^{-3}$, weight decay 0.05, batch 256, $\le80$ epochs, patience 8, 5 seeds \\
+\midrule
+\multicolumn{2}{l}{\textbf{Event encoder}} \\
+tokens & 44 values per event, events merged within 2\,ms, windows of 4\,s, $\le256$ windows \\
+convolutions & 64 channels, 6 GLU blocks, kernel 3, dilations $1\dots32$, GroupNorm, dropout 0.1 \\
+transformer & 2 pre-norm layers, 4 heads, feed-forward 128, dropout 0.1 \\
+MIL heads & gated attention, 32 attention units per task \\
+wide path & dropout 0.1, $128\to64\to35$ GELU, dropped for 50\% of charts \\
+stage 1 & $\le30$ epochs, AdamW lr $2\cdot10^{-3}$, weight decay 0.02, 15\% events and 15\% windows masked, all losses weight 1, slot loss 0.5 \\
+stage 2 & $\le25$ epochs, lr $4\cdot10^{-4}$ \\
+both stages & warm-up 1/30 of steps then cosine, gradient clip 1, $\le\num{64000}$ padded events per batch, random crops of \num{4000} events, mirror $p=0.5$, early stopping patience 6 on inner-validation mean AP \\
+test & whole chart ($\le\num{12000}$ events), mean with the mirror image \\
+\midrule
+\multicolumn{2}{l}{\textbf{Folds}} \\
+& 5 folds grouped by song over \nCharts{} charts; 10\% of labelled training songs for inner validation \\
+\bottomrule
+\end{tabular}
+\end{table}

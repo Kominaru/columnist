@@ -1,0 +1,60 @@
+\begin{tikzpicture}[
+  mdl/.style={box, draw=model, fill=model!7, minimum height=0.7cm},
+  dmdl/.style={box, draw=deep, fill=deep!7, minimum height=0.7cm},
+  tch/.style={box, draw=sup, fill=sup!8, minimum height=0.6cm},
+  sarr/.style={arr, draw=sup}]
+% ================= (a) folds =================
+\begin{scope}
+\node[font=\small\bfseries, anchor=west] at (-0.1,3.05) {(a) data for the fold-$k$ models};
+\def\W{1.04}
+\foreach \f in {0,...,4} {
+  \pgfmathsetmacro{\xa}{\f*\W}
+  \ifnum\f=2
+    \fill[rule!55] (\xa,1.9) rectangle (\xa+\W-0.04,2.35);
+  \else
+    \fill[sup!45] (\xa,1.9) rectangle (\xa+\W*0.3,2.35);
+    \fill[sup!15] (\xa+\W*0.3,1.9) rectangle (\xa+\W-0.04,2.35);
+    \fill[model!55] (\xa,1.9) rectangle (\xa+\W*0.05,2.35);
+  \fi
+  \node[lbl] at (\xa+\W/2-0.02,2.55) {fold \f};
+}
+\node[lbl, text=rule!80!black, font=\scriptsize\bfseries] at (2.6,2.12) {test};
+\node[tch, minimum height=0.3cm, fill=sup!45, draw=none] (k1) at (0.15,1.35) {}; \node[lbl, right] at (k1.east) {labelled (strict or relaxed)};
+\node[tch, minimum height=0.3cm, fill=sup!15, draw=none] (k2) at (0.15,0.95) {}; \node[lbl, right] at (k2.east) {unlabelled (ranked, loved, pools)};
+\node[tch, minimum height=0.3cm, fill=model!55, draw=none] (k3) at (0.15,0.55) {}; \node[lbl, right] at (k3.east) {inner validation: 10\% of labelled songs};
+\node[tch, minimum height=0.3cm, fill=rule!55, draw=none] (k4) at (0.15,0.15) {}; \node[lbl, right] at (k4.east) {fold-$k$ songs: never seen, not even unlabelled};
+\node[lbl, align=left, anchor=north west] at (-0.1,-0.25) {Folds are drawn by song over all \nCharts{} charts.\\Teachers and stage 2 use the labelled charts;\\stage 1 uses every non-test, non-validation chart;\\early stopping uses the inner validation songs;\\scores use the strict labels of fold $k$.};
+\end{scope}
+% ================= (b) teacher chain =================
+\begin{scope}[xshift=6.3cm]
+\node[font=\small\bfseries, anchor=west] at (-0.2,3.05) {(b) per-fold teachers};
+\node[mdl, text width=2.0cm, font=\scriptsize] (b1) at (0.95,2.2) {boosted: statistics,\\windows (+ transitions)};
+\node[mdl, text width=2.0cm, font=\scriptsize] (b2) at (3.55,2.2) {boosted: + reading,\\MinaCalc};
+\node[mdl, text width=2.2cm, font=\scriptsize] (mlp) at (2.25,0.95) {MLP student, 5 seeds};
+\node[tch, text width=2.2cm, font=\scriptsize] (t) at (2.25,-0.15) {deep teacher $T_k$ = mean};
+\node[dmdl, text width=2.2cm, font=\scriptsize] (deep) at (2.25,-1.25) {deep students};
+\draw[sarr] (b1.south) ++(0.5,0) -- node[lbl, left, text=sup!70!black, pos=0.3] {targets} ([xshift=-3mm]mlp.north);
+\draw[sarr] (b2.south) ++(-0.5,0) -- ([xshift=3mm]mlp.north);
+\draw[arr] (b1.south) ++(-0.4,0) |- (t.west);
+\draw[arr] (b2.south) ++(0.4,0) |- (t.east);
+\draw[arr] (mlp) -- (t);
+\draw[sarr] (t) -- node[lbl, right, text=sup!70!black] {targets} (deep);
+\node[lbl, align=left, anchor=north west] at (-0.2,-1.85) {Every model is trained on folds $\neq k$ and\\predicts every chart; its fold-$k$ predictions\\are the next model's soft targets.};
+\end{scope}
+% ================= (c) targets and stages =================
+\begin{scope}[xshift=11.2cm]
+\node[font=\small\bfseries, anchor=west] at (-0.2,3.05) {(c) training targets and stages};
+\node[lbl, anchor=west, text=black] at (-0.2,2.55) {per chart and task, the first that exists:};
+\node[box, text width=1.25cm, font=\scriptsize] (s1) at (0.55,1.85) {strict label};
+\node[box, text width=1.25cm, font=\scriptsize] (s2) at (2.35,1.85) {relaxed label};
+\node[tch, text width=1.25cm, font=\scriptsize] (s3) at (4.15,1.85) {teacher $T_k$ (soft)};
+\draw[arr] (s1) -- (s2); \draw[arr] (s2) -- (s3);
+\node[lbl] at (0.55,1.3) {weight 1};
+\node[lbl] at (2.35,1.3) {weight 0.5};
+\node[lbl] at (4.15,1.3) {weight 1};
+\node[dmdl, text width=4.75cm, font=\scriptsize, align=left] (st1) at (2.35,0.35) {\textbf{stage 1}, all non-test charts, 30 epochs, AdamW $2\cdot10^{-3}$ cosine: masked events + masked windows + statistics + task BCE (+ slot)};
+\node[dmdl, text width=4.75cm, font=\scriptsize, align=left] (st2) at (2.35,-0.95) {\textbf{stage 2}, labelled charts, $4\cdot10^{-4}$: task BCE (+ slot); keep the epoch with the best inner-validation mean AP (patience 6)};
+\draw[arr] (st1) -- (st2);
+\node[lbl, align=left, anchor=north west] at (-0.2,-1.85) {The boosted heads use the labels only; the\\MLP uses the three targets with one stage.};
+\end{scope}
+\end{tikzpicture}

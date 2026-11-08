@@ -1,0 +1,25 @@
+\begin{table*}[t]
+\centering\small
+\caption{Reviewer categories. Average precision on the strict out-of-fold labels (song-grouped 5-fold CV over all charts). pos./known: positive and labelled charts. gbm+win is the reference boosted head; the four components are averaged into the ensemble. Bold: best learned model. $^\dagger$\,\SV{} heads, for which the boosted component uses the reading and MinaCalc features.}
+\label{tab:v2-cats}
+\begin{tabular}{lrrccccccc}
+\toprule
+& & & & & \multicolumn{4}{c}{components} & \\ \cmidrule(lr){6-9}
+Task & pos. & known & rule & gbm+win & boosted & MLP & deep & wide\,\&\,deep & ensemble \\
+\midrule
+Chordjack & 1057 & 3495 & 0.772 & 0.841 & 0.851 & 0.843 & 0.844 & 0.852 & \textbf{0.856} \\
+Streams & 958 & 3327 & 0.479 & 0.585 & 0.610 & 0.624 & 0.626 & 0.633 & \textbf{0.635} \\
+Jumpstream/Handstream & 1460 & 3612 & 0.679 & 0.817 & 0.827 & 0.837 & 0.839 & \textbf{0.844} & 0.843 \\
+Technical & 723 & 3359 & 0.607 & 0.737 & 0.752 & 0.766 & 0.764 & 0.772 & \textbf{0.776} \\
+Stamina & 1229 & 3384 & 0.614 & 0.779 & 0.785 & 0.785 & 0.782 & 0.790 & \textbf{0.793} \\
+Release & 342 & 3349 & 0.368 & 0.718 & 0.732 & 0.717 & 0.740 & 0.733 & \textbf{0.741} \\
+Coordination & 744 & 3556 & 0.543 & 0.752 & 0.765 & 0.772 & 0.777 & 0.772 & \textbf{0.780} \\
+Density/Inverse & 486 & 3376 & 0.657 & 0.735 & 0.756 & 0.747 & 0.770 & 0.769 & \textbf{0.773} \\
+Reading$^\dagger$ & 485 & 3449 & 0.798 & 0.895 & \textbf{0.915} & 0.905 & 0.874 & 0.902 & 0.914 \\
+Memo$^\dagger$ & 43 & 3241 & 0.289 & 0.267 & 0.438 & 0.480 & 0.497 & 0.528 & \textbf{0.531} \\
+TB & 585 & 7644 & 0.402 & 0.787 & 0.803 & 0.737 & 0.750 & 0.782 & \textbf{0.805} \\
+\midrule
+Mean & & & 0.564 & 0.719 & 0.749 & 0.747 & 0.751 & 0.762 & \textbf{0.768} \\
+\bottomrule
+\end{tabular}
+\end{table*}

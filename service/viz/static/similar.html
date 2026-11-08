@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Similar charts · Columnist</title>
+<meta name="description" content="Pick an osu!mania 4K chart and find the charts that play most like it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314161c'/%3E%3Crect x='5' y='6' width='4' height='8' rx='2' fill='%23ff8a3d'/%3E%3Crect x='11' y='12' width='4' height='8' rx='2' fill='%2340c9c0'/%3E%3Crect x='17' y='9' width='4' height='14' rx='2' fill='%23a98bff'/%3E%3Crect x='23' y='18' width='4' height='8' rx='2' fill='%23ffd166'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .nav { display: flex; gap: 6px; margin-left: auto; }
+  .nav a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 9px; border: 1px solid transparent; }
+  .nav a.on, .nav a:hover { color: var(--text); border-color: var(--line); background: var(--card); }
+  .hero { max-width: 760px; margin: 28px auto 8px; }
+  .hero h1 { font-size: 26px; margin: 0 0 6px; }
+  .opts2 { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+  .sel { margin: 14px 0; padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+  .sel button { margin: 4px 6px 0 0; }
+  .qcard { margin: 22px auto 10px; max-width: 980px; padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); }
+  .qcard b { font-size: 17px; }
+  table { width: 100%; max-width: 980px; margin: 0 auto; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); min-width: 70px; }
+  .bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+  a { color: var(--accent2); text-decoration: none; } a:hover { text-decoration: underline; }
+  .err { color: #ff7b7b; margin-top: 10px; }
+  .spin2 { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: sp 0.8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo"></span><b>Columnist</b><span class="sub">osu!mania 4K</span></div>
+  <nav class="nav"><a href="/">Player</a><a href="/similar" class="on">Similar charts</a><a href="/difficulty">Difficulty</a><a href="/about">About</a></nav>
+</header>
+<main>
+  <div class="hero">
+    <h1>Find charts that play like this one</h1>
+    <p class="muted">Paste a beatmap link (or the beatmap id) and get the 4K charts whose note patterns are closest to it, judged by the Columnist model that reads each chart as a sequence of rows. No BPM or snap information is used.</p>
+    <form id="f" class="load" style="margin-top:14px">
+      <input id="u" type="text" placeholder="https://osu.ppy.sh/beatmapsets/123456#mania/987654" autocomplete="off">
+      <button type="submit">Find similar</button>
+      <label class="filebtn">Upload .osu<input id="file" type="file" accept=".osu"></label>
+    </form>
+    <div class="opts2">
+      <label>Results <select id="k"><option>10</option><option selected>20</option><option>30</option><option>50</option></select></label>
+      <label><input id="same" type="checkbox"> include the same song</label>
+      <span id="stat"></span>
+    </div>
+    <div id="choose" class="sel hidden"></div>
+    <div id="err" class="err"></div>
+  </div>
+  <div id="out"></div>
+</main>
+<footer class="foot muted" id="foot">Similarity is the cosine between Columnist chart embeddings (mean of the row encodings, standardised across the index).</footer>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (v, d = 1) => v == null ? "–" : Number(v).toFixed(d);
+const mmss = s => s == null ? "–" : Math.floor(s / 60) + ":" + String(Math.round(s % 60)).padStart(2, "0");
+const link = r => `https://osu.ppy.sh/beatmapsets/${r.beatmapset_id}#mania/${r.beatmap_id}`;
+async function call(url, opt) {
+  const r = await fetch(url, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || r.statusText);
+  return j;
+}
+function busy(on) { $("stat").innerHTML = on ? '<span class="spin2"></span>Reading the chart…' : ""; }
+function show(j) {
+  $("choose").classList.add("hidden");
+  const q = j.query;
+  let h = `<div class="qcard"><span class="muted">Charts similar to</span><br><b>${esc(q.artist)} – ${esc(q.title)} [${esc(q.version)}]</b>
+    <span class="muted"> · ${esc(q.mapper || "")} · ${mmss(q.length_s)} · ${fmt(q.nps_mean)} notes/s${q.stars ? " · " + fmt(q.stars, 2) + "★" : ""}${q.indexed ? "" : " · embedded on the fly"}</span></div>`;
+  h += '<div class="tablewrap"><table><thead><tr><th>#</th><th>Chart</th><th>Mapper</th><th class="n">★</th><th class="n">Length</th><th class="n">Notes/s</th><th class="n">LN %</th><th>Similarity</th><th></th></tr></thead><tbody>';
+  j.results.forEach((r, i) => {
+    const pct = Math.max(0, Math.min(100, r.similarity * 100));
+    h += `<tr><td class="muted">${i + 1}</td><td><a href="${link(r)}" target="_blank" rel="noopener">${esc(r.artist)} – ${esc(r.title)}</a> <span class="muted">[${esc(r.version)}]</span></td>
+      <td>${esc(r.mapper || "")}</td><td class="n">${fmt(r.stars, 2)}</td><td class="n">${mmss(r.length_s)}</td><td class="n">${fmt(r.nps_mean)}</td>
+      <td class="n">${r.ln_share == null ? "–" : Math.round(r.ln_share * 100)}</td>
+      <td><div class="bar" title="cosine ${r.similarity}"><i style="width:${pct}%"></i></div></td>
+      <td><a href="/?set=${r.beatmapset_id}" title="Open in the player">play</a> · <a href="/similar?b=${r.beatmap_id}" data-b="${r.beatmap_id}" class="again" title="Charts similar to this one">similar</a></td></tr>`;
+  });
+  $("out").innerHTML = h + "</tbody></table></div>";
+  document.querySelectorAll(".again").forEach(a => a.onclick = e => { e.preventDefault(); $("u").value = ""; go("", null, +a.dataset.b); window.scrollTo(0, 0); });
+}
+async function go(text, file, bid) {
+  $("err").textContent = ""; busy(true);
+  try {
+    const k = $("k").value, same = $("same").checked;
+    let j;
+    if (file) { const fd = new FormData(); fd.append("file", file); j = await call(`/api/similar/upload?k=${k}`, { method: "POST", body: fd }); }
+    else j = await call("/api/similar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: text || "", beatmap_id: bid || null, k: +k, same_set: same }) });
+    if (j.choose) {
+      $("choose").classList.remove("hidden");
+      $("choose").innerHTML = `<b>${esc(j.title)}</b><div class="muted">Which 4K difficulty?</div>` +
+        j.choose.map(c => `<button data-b="${c.beatmap_id}">${esc(c.version)}${c.stars ? " · " + fmt(c.stars, 2) + "★" : ""}</button>`).join("");
+      $("choose").querySelectorAll("button").forEach(b => b.onclick = () => go("", null, +b.dataset.b));
+    } else show(j);
+  } catch (e) { $("err").textContent = e.message; }
+  busy(false);
+}
+$("f").onsubmit = e => { e.preventDefault(); if ($("u").value.trim()) go($("u").value); };
+$("file").onchange = e => { if (e.target.files[0]) go(null, e.target.files[0]); };
+fetch("/api/similar/info").then(r => r.json()).then(j => { if (j.charts) $("foot").textContent += ` ${j.charts.toLocaleString()} charts indexed.`; }).catch(() => {});
+const p = new URLSearchParams(location.search);
+if (p.get("b")) go("", null, +p.get("b"));
+</script>
+</body>
+</html>

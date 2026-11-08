@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Columnist</title>
+<meta name="description" content="Play a 4K osu!mania chart and watch the pattern classifier's reading of each section in real time.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314161c'/%3E%3Crect x='5' y='6' width='4' height='8' rx='2' fill='%23ff8a3d'/%3E%3Crect x='11' y='12' width='4' height='8' rx='2' fill='%2340c9c0'/%3E%3Crect x='17' y='9' width='4' height='14' rx='2' fill='%23a98bff'/%3E%3Crect x='23' y='18' width='4' height='8' rx='2' fill='%23ffd166'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo"></span><b>Columnist</b><span class="sub">osu!mania 4K</span></div>
+  <nav class="nav" style="order:3"><a href="/similar" style="color:var(--accent2)">Similar charts</a><a href="/difficulty" style="color:var(--accent2)">Difficulty</a><a href="/about" style="color:var(--accent2)">About</a></nav>
+  <form id="fetchForm" class="load">
+    <input id="urlInput" type="text" placeholder="Beatmapset link or id, e.g. https://osu.ppy.sh/beatmapsets/123456" autocomplete="off">
+    <button type="submit">Load</button>
+    <label class="filebtn">Upload .osz / .osu<input id="fileInput" type="file" accept=".osz,.osu"></label>
+  </form>
+</header>
+
+<main id="app">
+  <section id="empty" class="empty">
+    <div class="drop" id="drop">
+      <h1>Watch the patterns as the chart plays</h1>
+      <p>Drop an <code>.osz</code> (charts and audio) or a single <code>.osu</code> here, or paste a beatmapset link above.
+        Links download the set from a public mirror when one answers, and fall back to the charts alone (no audio) from osu.ppy.sh.</p>
+      <p class="muted">Every note gets its own score, and the bars follow the notes you have just played (the last 2&nbsp;s, fading out after a section ends), so nothing fires before it reaches the hit line. Bars light up past the chart-level cut (white tick) and get a dot past the strong cut (coloured tick), the section score that best tells labelled charts apart.</p>
+    </div>
+  </section>
+
+  <section id="player" class="player hidden">
+    <div class="songbar">
+      <div class="songtitle"><span id="songTitle"></span><span id="songSub" class="muted"></span></div>
+      <select id="diffSelect" aria-label="Difficulty"></select>
+    </div>
+
+    <div class="stage">
+      <div class="fieldwrap">
+        <canvas id="field"></canvas>
+        <div id="noAudio" class="badge hidden">no audio, playing on a clock</div>
+        <div id="busy" class="busy hidden"><span class="spin"></span><span id="busyText">Analysing chart</span></div>
+      </div>
+
+      <aside class="panel">
+        <div class="card now">
+          <div class="cardhead"><h2>Now</h2><span id="clock" class="clock">0:00.0</span></div>
+          <div id="slotRow" class="slots"></div>
+          <div id="catBars" class="bars"></div>
+          <h3>Tags in this section</h3>
+          <div id="tagChips" class="chips"></div>
+          <h3>Notes on screen</h3>
+          <div id="localChips" class="chips local"></div>
+        </div>
+        <div class="card whole">
+          <h2>Whole chart</h2>
+          <div id="chartSummary"></div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="transport">
+      <button id="playBtn" class="play" aria-label="Play">▶</button>
+      <div class="opts">
+        <label>Rate <select id="rateSel"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option></select></label>
+        <label>Scroll <input id="speedIn" type="range" min="0.4" max="3" step="0.1" value="1.3"></label>
+        <label><input id="svChk" type="checkbox" checked> SV</label>
+        <label title="Per note: every note gets its own score from the note-level model, and the bars average the notes played in the last 2 s. 4 / 8 / 16 s: the older section scores, for the stretch of chart that ends at the playhead.">Scores <select id="winSel"><option value="notes" selected>per note (live)</option><option value="4000">4 s windows</option><option value="8000">8 s windows</option><option value="16000">16 s windows</option></select></label>
+        <label>Notes <select id="colorSel"><option value="model" selected>by model</option><option value="pattern">by row rule</option><option value="column">by column</option></select></label>
+        <label><input id="tickChk" type="checkbox"> Clicks</label>
+        <label>Offset <input id="offIn" type="number" value="0" step="5" style="width:4.5em"> ms</label>
+      </div>
+    </div>
+
+    <div class="card timeline">
+      <div class="cardhead"><h2>Timeline</h2><span class="muted">click to seek · space to play · ← → 5 s · ↑ ↓ scroll speed</span></div>
+      <canvas id="timeline"></canvas>
+    </div>
+  </section>
+  <div id="toast" class="toast hidden"></div>
+</main>
+<footer class="foot muted">Per-note scores: a local convolutional model over note events (each note sees about ±38 events around it), trained so that its note scores pool to the chart's labels (osu!(lazer) user tags and tournament sub-slots). Whole-chart result and slot: boosted trees on chart and window statistics.</footer>
+<script src="app.js"></script>
+</body>
+</html>

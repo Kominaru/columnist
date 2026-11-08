@@ -1,0 +1,311 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[a4paper,margin=1.8cm,columnsep=0.6cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{mathptmx}
+\usepackage{amsmath,amssymb}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{siunitx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc,decorations.pathreplacing,shapes.misc,matrix}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+\usepackage{caption}
+\usepackage{float}
+\captionsetup{font=small,labelfont=bf}
+\sisetup{detect-all,group-minimum-digits=4}
+
+\input{fig/tikz/style.tex}
+\input{numbers.tex}
+\newcommand{\utag}[1]{\texttt{\small #1}}
+\newcommand{\RC}{\textsc{rc}}
+\newcommand{\LN}{\textsc{ln}}
+\newcommand{\HB}{\textsc{hb}}
+\newcommand{\SV}{\textsc{sv}}
+
+\title{\bfseries Learning Tournament Slots and Pattern Skillsets of osu!mania Charts\\from Expert Mappools and Crowd-Sourced Tags}
+\author{Komi\\\small\texttt{j.ruza@udc.es}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Players and tournament organisers describe osu!mania charts in a shared vocabulary of \emph{slots} (rice, long note, hybrid, scroll speed) and \emph{skillsets} (jumpstream, chordjack, LN release, \dots). Beatmap Nominators, who triage far more ranking requests than they can play, would benefit from an automatic description in these terms. We build one from public data only. The mappools of 115 official tournaments label the slot of \num{4029} charts, and crowd-voted user tags on all \num{30732} ranked osu!mania difficulties label skillsets, which we treat as positive--unlabelled data with a strict and a relaxed threshold. A chart is represented twice: as one interpretable vector (71 statistics, their distribution over 16-second windows, a bag of row transitions, \emph{reading} features that describe what scroll-speed changes do to the notes on screen, and MinaCalc skillset ratings), and as a sequence of note events. A gradient-boosted classifier on the statistics predicts the tournament slot with 98.1\% accuracy, against 88.5\% for slotting rules. For 11 reviewer categories and 20 user tags we average four model families: boosted heads, a multi-task MLP, and two event encoders (dilated convolutions and a transformer over 4-second windows, with attention-based multiple-instance heads) that are pretrained with masked-event and masked-window objectives and distilled from per-fold teachers on the \nUnlab{} charts without a strict label. Under cross-validation grouped by song over all \nCharts{} charts, in which no model sees any chart of a test song, the ensemble reaches a mean average precision of \catEns{} on the categories and \tagEns{} on the tags, against \catBase{} and \tagBase{} for a boosted head on statistics and windows ($\catGain$ and $\tagGain$; 95\% song-bootstrap intervals $[\catLo, \catHi]$ and $[\tagLo, \tagHi]$).
+\end{abstract}
+
+% =====================================================================
+\section{Introduction}
+
+osu! is a free rhythm game with a large community of chart authors (\emph{mappers}). Its osu!mania mode is a vertical-scrolling key game in the tradition of Beatmania and StepMania: notes fall down $K$ columns ($K\in\{4,7\}$ in most play) and must be hit, or for \emph{long notes} (LNs) held and released, in time with the music. A chart (\emph{difficulty}) enters the ranked section only after two Beatmap Nominators (BNs) review and nominate it. BNs receive far more requests than they can play, and choose what to check largely by what kind of chart it is.
+
+The community has a precise, if informal, vocabulary for that. Tournament mappools group charts into \emph{slots}, of which four are near-universal: \emph{rice} (\RC; tap notes), \emph{long note} (\LN), \emph{hybrid} (\HB; a mix of both) and \emph{scroll speed} (\SV; charts whose difficulty comes from changing scroll velocity). Within a slot, players speak of \emph{skillsets}: jumpstream, handstream, chordjack, speed jacks, technical rhythm, stamina, LN release, LN coordination, inverse LNs, reading and memorising scroll changes, and so on. A reviewer who knows that a request is ``a 4K hybrid with dense inverse LNs and technical rhythm'' can route or prioritise it without opening it.
+
+Producing that description automatically raises three problems. \emph{Labels}: there is no annotated dataset. Tournament organisers slot charts carefully but only at the slot level; osu!(lazer) lets players vote \emph{user tags} on charts they have passed, which gives skillset labels, but only for ranked charts with an audience, and only positively: a tag nobody voted for is not evidence that the pattern is absent. \emph{Representation}: charts vary in key count, length, tempo and note count by orders of magnitude; the skillsets of interest are defined on short local configurations (a jack is the same column hit twice in quick succession); and some of them, such as an LN release section in a rice chart, occupy only part of the chart. \emph{Evaluation}: tournament pools contain rate-altered copies of one song and a ranked beatmapset contains several difficulties of the same song, so random splits leak, and unlabelled charts used for pretraining or distillation can leak too.
+
+This paper describes a system that addresses each in turn (\cref{fig:pipeline}). Our contributions are:
+\begin{itemize}\setlength\itemsep{1pt}
+\item Weakly supervised datasets built from public pages only: tournament slots for \num{4029} charts, and strict and relaxed skillset labels for 11 reviewer categories and 20 user tags, derived from user-tag votes and tournament sub-slots (\cref{sec:data}).
+\item Two complementary chart representations: an interpretable vector of chart statistics, window statistics, row transitions, reading features and MinaCalc ratings, and a tokenisation of the chart into note events (\cref{sec:features}).
+\item A slot classifier, and an ensemble of four model families for the categories and tags, in which neural students learn from unlabelled charts through per-fold teachers and self-supervised objectives without ever seeing a test song (\cref{sec:models}).
+\item An evaluation grouped by song over the whole corpus, with paired song-bootstrap intervals, against rule baselines and a boosted reference on identical charts (\cref{sec:results}).
+\end{itemize}
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{\input{fig/tikz/pipeline.tex}}
+\caption{The system. A chart is parsed into rows, long notes and a scroll profile, and represented both as one vector of interpretable features per chart and as a sequence of note events. A boosted classifier trained on tournament slots predicts the slot. Four model families predict the reviewer categories and user tags and are averaged: boosted heads and an MLP on the feature vector, and two event encoders, one of which also sees the feature vector through a wide path. Green: supervision.}
+\label{fig:pipeline}
+\end{figure*}
+
+% =====================================================================
+\section{Background and related work}\label{sec:related}
+
+\paragraph{osu!mania charts.} A chart is a list of hit objects $(t_i, e_i, c_i)$ with start time $t_i$, end time $e_i\ge t_i$ ($e_i>t_i$ for an LN) and column $c_i\in\{0,\dots,K-1\}$, plus a list of \emph{timing points}. Uninherited (``red'') points set the beat length and hence the BPM; inherited (``green'') points set a slider-velocity (SV) multiplier that, in osu!mania, scales how fast notes scroll. Together they determine an effective scroll speed that may differ greatly from the song's tempo; \SV{} charts exploit this.
+
+\paragraph{Difficulty and pattern analysis.} osu!'s own star rating is a hand-designed strain model that outputs a single number. Etterna's MinaCalc rates charts per skillset (stream, jumpstream, handstream, stamina, jackspeed, chordjack, technical) with hand-tuned pattern detectors \citep{minacalc}; we use its ratings as features. Community tools for osu! are also rule-based: \citet{rosupattern} detect mania jacks and jump/hand streams, while SimpleBeatmapAnalyzer \citep{simplebeatmap} and osu-finder \citep{osufinder} classify osu!standard maps by spacing or strain ratios. None learns from labels or outputs tournament slots. Our rule baselines (\cref{sec:rules}) are in the spirit of these tools.
+
+\paragraph{Machine learning on rhythm-game charts.} Most learned work generates charts from audio: Dance Dance Convolution \citep{donahue2017ddc} and its successors \citep{yi2023beataligned,an2026transfer}, and TaikoNation, which targets human-like patterning \citep{halina2021taikonation}. \citet{franks2023ordinal} estimate StepMania difficulty levels with ordinal regression, and \citet{liu2025osu2mir} use osu! timing as beat-tracking labels. To our knowledge no prior work classifies charts into tournament slots or predicts crowd skillset tags.
+
+\paragraph{Learning from tags and positive-only labels.} Predicting user tags is analogous to music auto-tagging \citep{lamere2008social,choi2016autotagging}, where social tags are sparse and under-reported \citep{golder2006usage}. A missing tag is an unlabelled example rather than a negative one, the setting of positive--unlabelled (PU) learning \citep{elkan2008pu,bekker2020pu} and of multi-label learning with missing labels \citep{yu2014missing}. We abstain on insufficiently annotated charts and down-weight weakly annotated ones; combining several noisy label sources by rules is a form of weak supervision \citep{ratner2017snorkel}.
+
+\paragraph{Models.} The boosted heads are gradient-boosted trees \citep{friedman2001gbm} in the histogram formulation of LightGBM \citep{ke2017lightgbm} as implemented in scikit-learn \citep{pedregosa2011sklearn}, which remain strong on tabular data \citep{grinsztajn2022tree}; feeding rule scores to them is stacking \citep{wolpert1992stacked}. The neural students are trained on teacher probabilities where labels are missing, which is knowledge distillation \citep{hinton2015distilling} used for self-training on unlabelled data \citep{xie2020noisy}. The event encoder combines gated \citep{dauphin2017glu} dilated \citep{oord2016wavenet} convolutions with a transformer \citep{vaswani2017attention}, is pretrained by masked prediction \citep{devlin2019bert}, and reads out each label with attention-based multiple-instance pooling \citep{dietterich1997mil,ilse2018attention}, since a chart is positive for a skillset when some of its sections are. Its wide path follows wide-and-deep models \citep{cheng2016wide}, and the final prediction is a plain ensemble average \citep{dietterich2000ensemble}. Group-aware cross-validation avoids the leakage that related samples cause \citep{kaufman2012leakage,roberts2017cv}.
+
+% =====================================================================
+\section{Data}\label{sec:data}
+
+Everything is collected without an osu! API key: the osu! wiki is a public Git repository, chart files are served at \texttt{osu.ppy.sh/osu/\{id\}}, and the public beatmapset page embeds the same JSON the API returns, including each difficulty's user tags with vote counts.
+
+\subsection{Tournament mappools (slot labels)}\label{sec:pools}
+The osu! wiki documents the mappools of officially supported tournaments. We parsed \num{9963} pool entries (\num{8454} distinct charts) from 115 osu!mania tournaments in 42 series (e.g.\ MWC, MCNC, 4DM, SOFT, o!mLN, JHC) and downloaded every chart. A normaliser maps raw slot names (``LN'', ``Long Note'', ``Long Notes'') onto $\mathcal{Y}=\{\RC,\LN,\HB,\SV\}$; tournaments that are wholly one category inherit it (all of o!mLN is \LN, all of SVSE is \SV, and the jack-and-chord tournament JHC is \RC). FreeMod, NoMod, Tiebreaker and Wildcard slots carry no pattern information and are left unlabelled. A chart in several pools receives the majority label and exact ties are discarded. After removing charts with fewer than 50 notes or fewer than 4 keys, \num{4029} charts of \num{3558} songs are labelled. Sub-slot names (``Dense Chordjack'', ``Coordination'', ``Memorisation'', ``Tiebreaker'') are kept for the categories of \cref{sec:categories}.
+
+\subsection{User tags on ranked charts (skillset labels)}\label{sec:tags-data}
+We listed all \num{8673} ranked osu!mania beatmapsets and fetched the user tags of their \num{30732} difficulties. Votes are sparse: \num{10031} difficulties have at least one vote and \num{3227} have eight or more. Let $v_{d,\tau}$ be the number of votes for tag $\tau$ on difficulty $d$ and $V_d=\sum_\tau v_{d,\tau}$. The \emph{strict} label, used for training and for all evaluation, is
+\begin{equation}
+y_{d,\tau}=\begin{cases}1 & v_{d,\tau}\ge 2,\\ 0 & v_{d,\tau}=0\text{ and }V_d\ge 8,\\ \varnothing & \text{otherwise,}\end{cases}
+\label{eq:labels}
+\end{equation}
+where $\varnothing$ (unknown) removes the pair from that tag's training and evaluation sets: a single vote is often idiosyncratic, and a difficulty with few votes says little about the tags it lacks. The \emph{relaxed} label adds, for training only and at weight $\tfrac12$, the pairs that \cref{eq:labels} leaves unknown but that carry some evidence: $y=1$ if $v_{d,\tau}=1$, and $y=0$ if $v_{d,\tau}=0$ and $3\le V_d\le7$. We keep the 20 mania tags with at least 12 strict positives and 12 strict negatives (\cref{tab:v2-tags}).
+
+\subsection{Reviewer categories}\label{sec:categories}
+The BN who requested this tool defined the categories in which predictions are reported (multi-label): \emph{Rice}: Chordjack, Streams, Jumpstream/Handstream, Technical, Mixed Rice, Stamina; \emph{LN}: Release, Coordination, Density/Inverse; \emph{SV}: Reading, Memo; \emph{Hybrid}; and \emph{TB} (tiebreaker-worthy). Hybrid is the slot of \cref{sec:pools}, and Mixed Rice is derived: a chart is Mixed Rice when skills from at least two of the families \{Chordjack\}, \{Streams, Jumpstream/Handstream\}, \{Technical\} fire. The other 11 categories have learned heads and draw labels from two sources, combined by ``positive anywhere wins, otherwise negative anywhere, otherwise unknown'':
+\begin{itemize}\setlength\itemsep{1pt}
+\item user tags, through a fixed many-to-one map (e.g.\ Jumpstream/Handstream $\leftarrow$ \utag{style/jumpstream}, \utag{style/handstream}, \utag{style/chordstream}, \utag{style/quadstream}) with \cref{eq:labels} applied to the category's most-voted tag, and the relaxed rule likewise;
+\item tournament sub-slots (JHC's chordjack and quadstream slots, o!mLN's Coordination and Density, SVSE's Reading and Memorisation, and every pool's Tiebreaker). A chart in one sub-slot is a negative for the sibling sub-slots of the same tournament, because poolers slot by the dominant skill; for TB, every other slot-labelled pool chart is a negative.
+\end{itemize}
+Two mappings needed care. The mania tag \utag{skillset/reading} denotes reading dense patterns rather than scroll-speed reading, so SV Reading uses the \utag{sliders/*} tags. Memo uses \utag{gimmick/memory}, but only on charts whose scroll speed actually varies, since the tag is also voted on storyboard gimmicks.
+
+\subsection{Corpus and folds}\label{sec:corpus}
+The category and tag experiments use every ranked osu!mania chart together with every tournament chart we could download, \nCharts{} charts in all (\cref{tab:v2-data}). Most of them have no strict label for any task; they are still useful, as inputs for self-supervised pretraining and as charts on which a teacher's predictions can be distilled. To make that safe, the five cross-validation folds are drawn by \emph{song} over the whole corpus: the song key is the normalised artist and title with mapper and difficulty names stripped, so rate edits, re-uploads and the difficulties of a beatmapset stay together. A model for fold $k$ never sees any chart of a fold-$k$ song, labelled or not.
+
+\input{tables/v2_data.tex}
+
+% =====================================================================
+\section{Chart representation}\label{sec:features}
+
+\subsection{Rows, gaps and scroll position}\label{sec:rows}
+Notes whose start times lie within \SI{2}{ms} form a \emph{row} $r_j$ at time $\tau_j$ with column set $C_j$. Let $g_j=\tau_j-\tau_{j-1}$; a transition is \emph{fast} if $g_j<\SI{220}{ms}$, inside a pattern rather than a pause. The timing points define a piecewise-constant effective scroll speed
+\begin{equation}
+s(t)=\frac{\beta_{\text{main}}}{\beta(t)}\,\mathrm{sv}(t),
+\end{equation}
+where $\beta(t)$ is the active beat length, $\beta_{\text{main}}$ the beat length covering most of the chart, and $\mathrm{sv}(t)\in[0.01,10]$ the active SV multiplier, reset to 1 at each red point. Its integral $x(t)=\int_0^t s(u)\,du$ is the \emph{scroll position}: a note hit at time $T$ is drawn at height $x(T)-x(t)$ above the judgement line at time $t$.
+
+\subsection{Chart statistics}\label{sec:stats}
+71 statistics describe the chart as a whole, each a quantity a mappooler inspects (\cref{fig:features}a; full list in \cref{app:features}). They are normalised by note count, row count or duration so that charts of different key counts and lengths are comparable, and $K$ is itself a feature.
+\textbf{Meta and density} (15): keys, OD, HP, note count, duration, notes per second overall and per key, percentiles of 2-second note rates, peak-to-median ratio, a stamina proxy (the share of windows within 80\% of the 90th-percentile rate) and the variation of density.
+\textbf{Chords, jacks and streams} (22): shares of single, jump, hand and quad rows; the share of fast transitions with $C_j\cap C_{j-1}\neq\emptyset$ (\emph{jack rows}), of jack rows between two chords (\emph{chordjacks}) and of fast transitions with $C_j\cap C_{j-1}=\emptyset$ (\emph{stream rows}), split into jumpstream and handstream by $|C_j|$; jack gaps and chains; trills; and anchors.
+\textbf{Rhythm} (14): the distribution of the snap of fast gaps relative to the local beat (1/2 to 1/16, triplets, other), the number of distinct gaps per 16 rows, the rate of large gap-ratio changes, the main BPM and the number of BPMs.
+\textbf{Long notes} (11): LN share $\rho$, LNs per second, LN lengths in ms and beats, hold coverage $\sum_i(e_i-t_i)/(K\cdot T)$, the inverse rate (an LN followed in its column by a note less than 0.3 beats after its release), the share of releases on no row (\emph{off-grid}), and the mean number of columns held while a note is hit, divided by $K$ (\emph{coordination}).
+\textbf{Scroll speed} (9): the duration-weighted standard deviation $\sigma_{\log s}$ of $\log s$, the share of time with $|\log s|>0.05$ and $>0.4$, of near-stops ($s<0.2$) and fast sections ($s>2$), SV point and change rates, and the rate of SV changes within \SI{1.5}{s} of a note.
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{\input{fig/tikz/features.tex}}
+\caption{Chart-level features. (a) Notes are grouped into rows (time runs upward, as the notes fall); whether consecutive rows share a column, how far apart they are, and how long notes overlap other rows define the chart statistics. (b) Row transitions count each pair of consecutive row shapes, separately for fast and slow gaps; mirror images are merged in 4K, and 7K charts are split into hands. (c) Window statistics recompute the statistics on overlapping 16-second windows and keep their maximum, 75th percentile and standard deviation, so that a section-level skill is not averaged away.}
+\label{fig:features}
+\end{figure*}
+
+\subsection{Window statistics}\label{sec:windows}
+Chart-level statistics dilute short passages: a 20-second LN release section in a three-minute rice chart barely moves the chart's LN share. We therefore recompute the statistics on windows of \SI{16}{s} every \SI{8}{s} that contain at least 30 notes, dropping the 8 statistics that are chart constants or only measure window length, and pool each of the remaining 63 over windows by its maximum, 75th percentile and standard deviation (189 features, \cref{fig:features}c). This is a multiple-instance representation that needs no learning: ``somewhere in this chart there is $X$'' becomes a high maximum.
+
+\subsection{Row transitions}\label{sec:transitions}
+The statistics summarise patterns as a few shares, but many skillsets differ in their transitions rather than their chord sizes: a jumptrill and a jumpstream have the same rows in a different order. We count every pair of consecutive rows by their exact column sets (\cref{fig:features}b). In 4K the key is the pair of 4-bit masks, and a transition and its mirror image are counted together (117 classes). In 7K each hand is handled separately: columns 0--2 are mirrored onto columns 4--6, so that a roll towards the thumb reads the same on both hands, the two hands share one 3-bit vocabulary ($7\times7$ pairs), and transitions are taken between consecutive rows in which that hand plays; the thumb column's share of rows is one more feature. Each pair is bucketed as fast ($<\SI{150}{ms}$) or slow (\SIrange{150}{400}{ms}); rows further apart are not a pattern. Counts are divided by the number of transitions, which gives 333 features; other key counts get none.
+
+\subsection{Reading features}\label{sec:reading}
+The scroll-speed statistics describe the speed values. What makes an \SV{} chart hard to read or memorise is what those values do to the notes on screen, which the reading features measure from $x(t)$ (\cref{fig:reading}). Let $H$ be the screen height, expressed as the time a note is visible at the main BPM and $1.0\times$ SV (we take \SI{600}{ms}, a typical scroll speed). A note hit at $T$ becomes visible at the time $o(T)$ where $x(T)-x(o(T))=H$, so its \emph{visible time} is $T-o(T)$; at constant speed every note is visible for exactly $H$. Two consecutive rows are drawn $\Delta x$ apart for a time gap $\Delta t$; at constant speed $\Delta x/\Delta t=1$. From these we compute 22 features (\cref{app:reading}): percentiles of the visible time in units of $H$, and the shares of notes that appear late ($<0.5H$, $<0.25H$) or crawl ($>2H$); the spread of $\log(\Delta x/\Delta t)$, its extremes, its jitter between consecutive rows, and the shares of \emph{stacked} ($\Delta x/\Delta t<0.2$) and \emph{spread} ($>3$) rows; the variation of the speed at the moments notes are hit, overall and within 2-second blocks; the rate of speed changes that happen while the next note is already on screen, which make visible notes jump, stop or rush; the rates of \emph{teleports} (segments faster than $4\times$ and shorter than \SI{80}{ms}) and \emph{freezes} (slower than $0.1\times$ and longer than \SI{150}{ms}) while a note is visible; and how many notes are on screen at once relative to constant scroll.
+
+\begin{figure}[t]
+\centering
+\resizebox{\columnwidth}{!}{\input{fig/tikz/reading.tex}}
+\caption{Reading features. Top: the effective scroll speed $s(t)$ of a chart with a slow section, a teleport and a freeze. Bottom: the scroll position $x(t)$ and the hit times of seven notes (dots). A note hit at $T$ is on screen while $x(T)-x(t)\le H$: the highlighted note appears near the end of the slow section and is visible for only $0.7H$. The two notes in the slow section are drawn a quarter of their time gap apart (stacked), and the freeze happens while the second-to-last note is on screen.}
+\label{fig:reading}
+\end{figure}
+
+\subsection{MinaCalc ratings}\label{sec:msd}
+MinaCalc (Etterna's calculator, version 527) rates a chart on overall difficulty and seven skillsets \citep{minacalc}. We run it at $1.0\times$ on every 4K, 6K and 7K chart, with long notes counted as their heads as in Etterna, and keep the eight ratings and the seven skillset ratings divided by the overall rating, which say what a chart is about independently of how hard it is (15 features).
+
+\subsection{Event tokens}\label{sec:tokens}
+For the neural encoders a chart becomes a sequence of \emph{events}, the moments at which at least one note starts or a long note ends (merged within \SI{2}{ms}; \cref{fig:tokens}). Each event carries, per column, three bits: \emph{head} (a note starts), \emph{tail} (an LN is released) and \emph{held} (an LN body passes through the event without starting or ending there). The columns of a $K$-key chart are centred in 10 slots, so 4K and 7K charts share weights, and mirroring the chart reverses the slots. Five continuous values follow: the log gaps to the previous and next event, the gap to the previous event in beats, the log effective scroll speed and the log beat length; then a one-hot snap of the previous gap (1/1, 1/2, 1/4, 1/8, 1/16, 1/3, 1/6, 1/12, other). An event is thus a vector of $10\cdot3+5+9=44$ values; the key count enters the model separately. Events are grouped into 4-second windows by their time from the first event.
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{\input{fig/tikz/tokens.tex}}
+\caption{Event tokens. Each moment at which a note starts or a long note ends becomes one event (left: a 4K chart with one long note in column 1). Its vector holds head, tail and held bits for 10 column slots in which the chart's columns are centred (padding in grey), five timing and scroll values (shades) and the snap of the gap to the previous event. The window index groups events into 4-second windows for the encoder of \cref{fig:encoder}.}
+\label{fig:tokens}
+\end{figure*}
+
+% =====================================================================
+\section{Models}\label{sec:models}
+
+\subsection{Rule baselines}\label{sec:rules}
+Every learned component has a hand-written counterpart evaluated on identical charts. The slot rule assigns \SV{} if $\min(1,\sigma_{\log s}/0.3)\cdot\min(1,\text{near-note SV rate}/0.5)\ge0.5$, and otherwise the argmax of three LN-share scores: \RC{} $=\mathrm{clip}(1-\rho/0.12)$, \HB{} $=\mathrm{clip}(1-|\rho-0.25|/0.15)$, \LN{} $=\mathrm{clip}((\rho-0.3)/0.3)$. Each tag rule is a product of logistic squashes $\sigma((x-m)/w)$ of the one or two statistics that define the tag (e.g.\ jumpstream $=(1-\sigma_\rho)\,\sigma((\text{jumpstream rows}-0.18)/0.04)$, where $1-\sigma_\rho$ suppresses LN charts); category rules take the maximum over their tags' rules. The thresholds were set by inspecting a few dozen charts before any labels were collected.
+
+\subsection{Slot classifier}\label{sec:slot-model}
+The slot model is a histogram gradient-boosting classifier \citep{ke2017lightgbm,pedregosa2011sklearn} on the 71 statistics with 300 iterations, learning rate 0.05, at most 15 leaves, $\ell_2$ regularisation 1.0 and class weights inversely proportional to class frequency (\HB{} and \SV{} are 18\% and 7\% of the data), trained with the multinomial log-loss. Its four probabilities are inputs of the boosted heads; for the tournament charts it was trained on, its out-of-fold probabilities are used.
+
+\subsection{Boosted heads}\label{sec:boosted}
+Each task (category or tag) has independent binary heads: boosted classifiers with 200 iterations, learning rate 0.05, 15 leaves, at least 10 samples per leaf and balanced class weights, trained only on charts with a known label. The base input is the concatenation of the statistics, all rule scores and the four slot probabilities, so a head can start from the rule and from the slot model's notion of ``this is an LN chart''. The \emph{boosted component} of the ensemble averages five heads per task, which differ in inputs and labels: base, base + windows, and base + windows + transitions on strict labels, and base + windows and base + windows + transitions on strict and relaxed labels (relaxed pairs at weight $\tfrac12$). For the five \SV{} heads (Reading, Memo and the three \utag{sliders/*} tags) the boosted component is instead a single relaxed-label head on base + windows + transitions + reading + MinaCalc features. The reading features describe scroll speed only, and for the other tasks they would add 37 inputs that carry no signal; we use them where they apply (\cref{sec:res-reading}).
+
+\subsection{Per-fold teachers and targets}\label{sec:teachers}
+The neural models learn from the unlabelled majority of the corpus through \emph{teachers}, models of the previous family whose predictions serve as soft targets where a label is missing (\cref{fig:protocol}). For fold $k$, every teacher is trained on folds $\neq k$ and predicts every chart, so its predictions are out-of-sample for fold $k$, and the students of fold $k$ read them only on non-test charts. The chain is:
+\begin{enumerate}\setlength\itemsep{1pt}
+\item two boosted teachers: the mean of the relaxed-label heads on base + windows and on base + windows + transitions, and the relaxed-label head with reading and MinaCalc features;
+\item the MLP student (\cref{sec:mlp}), distilled from the mean of the two boosted teachers;
+\item the deep teacher $T_k$, the mean of the two boosted teachers and the MLP student, from which the event encoders are distilled.
+\end{enumerate}
+For every chart and task, a student's target is the first that exists of the strict label (weight 1), the relaxed label (weight $\tfrac12$) and the teacher's probability (weight 1). The students' binary losses are weighted cross-entropies with a positive weight $\min(10,\max(1,\sqrt{n_-/n_+}))$ per task, from the strict training labels.
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{\input{fig/tikz/protocol.tex}}
+\caption{Training protocol for fold $k$. (a) Folds are drawn by song over the whole corpus, so fold-$k$ songs are excluded from every stage of every fold-$k$ model, including pretraining on unlabelled charts. (b) Each model family is distilled from the per-fold predictions of the previous ones. (c) Targets fall back from strict labels to relaxed labels to the teacher; the event encoders are trained in two stages.}
+\label{fig:protocol}
+\end{figure*}
+
+\subsection{MLP student}\label{sec:mlp}
+One multi-task network predicts all 31 tasks from the boosted heads' feature vector without rule scores and slot probabilities: statistics and window statistics (signed log), row transitions, reading features and MinaCalc ratings, z-scored on the fold's training charts. It has two hidden layers of 512 and 256 GELU units, dropout 0.1 on the input and 0.3 on the hidden layers, and is trained with AdamW \citep{loshchilov2019adamw} (learning rate $10^{-3}$, weight decay 0.05, batches of 256) on every non-test chart with the targets of \cref{sec:teachers}. Training stops when the mean AP on the inner-validation songs (over tasks with at least five validation positives) has not improved for 8 epochs, and the best epoch is kept. The component averages five seeds.
+
+\subsection{Deep event encoder}\label{sec:deep}
+\paragraph{Architecture.} The encoder reads the event tokens of \cref{sec:tokens} hierarchically (\cref{fig:encoder}). A linear layer maps each event to 64 channels and adds an embedding of the key count. Six residual blocks, each a GroupNorm \citep{wu2018groupnorm}, a convolution of width 3 with dilation $2^{i}$ ($i=0,\dots,5$) and a gated linear unit \citep{dauphin2017glu}, give every event a context of 127 events, enough for the patterns of \cref{fig:features}. Events are then pooled into 4-second windows by concatenating their mean and maximum, followed by a linear layer, GELU and LayerNorm. A learned position embedding is added to the window tokens, and a two-layer pre-norm transformer \citep{vaswani2017attention} with 4 heads relates the windows of the whole chart. Each task $\tau$ reads the window embeddings $h_w$ with its own gated attention \citep{ilse2018attention},
+\begin{align}
+a_{\tau w}&=\operatorname*{softmax}_w\, u_\tau^{\!\top}\!\big(\tanh(V_\tau h_w)\odot\sigma(U_\tau h_w)\big),\\
+z_\tau&=\textstyle\sum_w a_{\tau w}h_w,
+\end{align}
+and a linear classifier on $z_\tau$ gives the logit. The attention weights say in which windows a skillset was found. A four-way slot head reads the mean window embedding.
+
+\paragraph{Stage 1: pretraining and distillation.} On every non-test, non-validation chart of the fold (about \num{26000}), the encoder is trained for up to 30 epochs on the sum of four objectives:
+\begin{itemize}\setlength\itemsep{1pt}
+\item \emph{masked events}: 15\% of the events are replaced by a learned vector after the input layer, and from their encoded features the model predicts their head and tail bits per column and their log gap to the previous event (pattern grammar);
+\item \emph{masked windows}: 15\% of the window tokens are replaced by a learned vector before the transformer, and the model predicts 17 summary statistics of each masked window (log counts of events and notes; shares of chords, jacks, releases and held columns; mean gap and scroll speed; snap distribution) from the surrounding windows (structure);
+\item \emph{statistics}: from the mean and maximum of the window embeddings, the model regresses the 260 chart and window statistics (signed log, z-scored, smooth $\ell_1$), which are free targets on every chart;
+\item \emph{tasks}: the weighted cross-entropy against the targets of \cref{sec:teachers}, plus half the cross-entropy of the slot head on tournament charts.
+\end{itemize}
+Optimisation uses AdamW with learning rate $2\cdot10^{-3}$, weight decay 0.02, linear warm-up over the first 1/30 of the steps and cosine decay, gradient clipping at 1, and batches of charts of similar length with at most \num{64000} padded events. Training charts are cropped to a random span of \num{4000} events and mirrored with probability $\tfrac12$.
+
+\paragraph{Stage 2: fine-tuning.} The self-supervised and statistics losses are dropped, and the model is fine-tuned on the charts that have a strict or relaxed label (teacher targets fill their unknown tasks) at learning rate $4\cdot10^{-4}$ for up to 25 epochs. After each epoch of both stages the mean AP on the inner-validation songs is computed; a stage stops after 6 epochs without improvement and keeps its best state. Test charts are read whole (up to \num{12000} events), and the prediction is the mean over the chart and its mirror image.
+
+\paragraph{Wide path.} The second deep component adds the boosted heads' feature vector (statistics, window statistics, transitions, reading and MinaCalc features, z-scored) through an MLP ($128\to64\to35$ units) whose logits are added to the attention heads' task and slot logits, as in wide-and-deep models \citep{cheng2016wide}. During training the whole wide path is switched off for a random half of the charts in each batch, so that the event encoder still has to classify on its own and the two paths do not co-adapt. The plain component averages \nPlain{} seeds and the wide component \nWide{}.
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{\input{fig/tikz/encoder.tex}}
+\caption{The event encoder. Dilated gated convolutions read local patterns from the event tokens, events are pooled into 4-second windows, a transformer relates the windows of the whole chart, and one gated attention pool per task selects the windows that carry the skillset. The wide path (blue) adds a logit from the chart-level features. The dashed heads are trained only in stage 1, on every non-test chart: masked event and masked window prediction, and regression of the chart and window statistics.}
+\label{fig:encoder}
+\end{figure*}
+
+\subsection{Ensemble}\label{sec:ensemble}
+The final prediction for each task is the unweighted mean of the probabilities of the four components (boosted, MLP, deep, wide \& deep), each itself the mean of its runs. Nothing in the combination is fitted, so the combination cannot overfit the evaluation folds.
+
+\subsection{Reported output}
+For a new chart the system reports its argmax slot, the categories of that slot whose score exceeds the head's threshold (for \HB, the Rice and LN categories), any category of another slot whose score exceeds $\max(\text{threshold},0.8)$, Mixed Rice by the rule of \cref{sec:categories}, a TB flag, and timestamps of the densest jack, stream, LN and \SV{} sections. Thresholds maximise F1 on the out-of-fold predictions.
+
+% =====================================================================
+\section{Experimental setup}\label{sec:setup}
+\paragraph{Slots.} The slot model is evaluated by 5-fold stratified cross-validation grouped by song on the \num{4029} slot-labelled charts. We report accuracy and macro-F1 with a cluster bootstrap over songs \citep{efron1993bootstrap} (\num{1000} replicates).
+
+\paragraph{Categories and tags.} All models use the five song folds of \cref{sec:corpus}. Inside the training folds, 10\% of the songs that have a labelled chart are held out as \emph{inner validation} for early stopping; the test fold is never used for any choice within a run. Each task is scored by average precision (AP) on the pooled out-of-fold predictions of its strictly labelled charts, which is threshold-free and suited to rare positives \citep{davis2006pr,saito2015pr}, and each benchmark by the mean AP over its tasks (11 categories, 20 tags). The reference is the boosted head on base + windows with strict labels (\emph{gbm+win}), the strongest single head of the boosted family. Differences are given with a paired cluster bootstrap over songs: songs are resampled with replacement \nBoot{} times, and on each resample the AP of every task is recomputed for both models on the same charts. The neural models were trained on one RTX 2060 SUPER (8\,GB), about 1.5 hours for the five folds of one deep run; the boosted heads on four CPU cores.
+
+% =====================================================================
+\section{Results}\label{sec:results}
+
+\subsection{Tournament slots}\label{sec:res-slots}
+\input{tables/slots_main.tex}
+The learned slot classifier reaches 98.1\% accuracy and 0.978 macro-F1, against 88.5\% and 0.844 for the slotting rules; the 9.6-point gain has a 95\% interval of $[8.6, 10.6]$, and the improvement holds for each key mode (\cref{tab:slots}). \Cref{fig:confusion} locates the difference. Rice and scroll-speed charts are easy for both methods. The rules mislabel 427 of 738 hybrids (58\%) as long-note charts, because tournament hybrids are far more LN-heavy than the rule's notion of ``some LNs'': their median LN share is 0.38, and a third of them exceed the point (0.37) at which the rule prefers \LN{} (\cref{fig:lnshare}). The learned model raises hybrid F1 from 0.566 to 0.951. Its 77 remaining errors are mostly the same boundary in both directions (median LN share 0.53) and cluster in a few tournaments, partly because the normaliser labels every o!mLN chart \LN{} although some of its pools contain hybrids. Two quantities nearly determine the slot: LN share alone gives 90.0\% accuracy, and adding the nine scroll-speed statistics gives 96.7\%. A random forest or a logistic regression on the same 71 statistics comes within 0.2 points of boosting, so the gain comes from placing the boundaries where organisers place them rather than from the model class.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig/confusion.pdf}
+\caption{Slot confusion matrices (counts; shading is row-normalised). Nearly all rule errors are hybrids labelled LN.}
+\label{fig:confusion}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig/ln_share.pdf}
+\caption{LN share of tournament charts by slot. Dashed lines mark where the rule's \RC/\HB{} and \HB/\LN{} scores cross. Hybrids span 0.1 to 0.7 and overlap the LN distribution.}
+\label{fig:lnshare}
+\end{figure}
+
+\subsection{Categories and user tags}\label{sec:res-main}
+\input{tables/v2_categories.tex}
+\input{tables/v2_tags.tex}
+\Cref{tab:v2-cats,tab:v2-tags} give the AP of every task, and \cref{fig:pertask} shows them against the rules and the reference. The ensemble reaches a mean AP of \catEns{} on the categories and \tagEns{} on the tags, against \catBase{} and \tagBase{} for gbm+win and \catRule{} and \tagRule{} for the rules. The gain over gbm+win is $\catGain$ on the categories, with a 95\% song-bootstrap interval of $[\catLo, \catHi]$, and $\tagGain$ on the tags, $[\tagLo, \tagHi]$. The ensemble is better than gbm+win on \catBeatsBase{} of 11 categories and \tagBeatsBase{} of 20 tags.
+
+The gains are largest where the reference lacked information. Memo rises from \apMemoBase{} to \apMemoEns{} and \utag{sliders/low sv} from 0.53 to 0.66, through the reading features (\cref{sec:res-reading}). Skillsets defined by transitions or by sections gain 0.04 to 0.08: LN inverse ($+0.08$); generic hybrid, longjack, speedjack, tech, stream speed and handstream ($+0.04$ to $+0.06$); and Streams, Technical and Density/Inverse among the categories ($+0.04$ to $+0.05$). Skillsets that one statistic already captures, such as chordjack (0.87) or complex SV (0.92), gain least. The weakest tasks are the rarest: \utag{style/quadstream} has 36 positives and stays at 0.15 AP, and wristjack reaches 0.41.
+
+\begin{figure}[t]
+\centering
+\input{fig/tikz/pertask.tex}
+\caption{Average precision per task: rule, the boosted reference gbm+win, and the ensemble (lines join the last two).}
+\label{fig:pertask}
+\end{figure}
+
+\subsection{What each component adds}\label{sec:res-components}
+\input{tables/v2_components.tex}
+Each of the four components alone beats the reference by 0.03 to 0.04 on both benchmarks (\cref{tab:v2-components}). The wide \& deep encoder is the strongest single model (\catWide{} / \tagWide{}); the MLP, which sees the same features as the boosted heads, matches the plain encoder on the tags. The plain mean of the four is better than any of them, by about 0.006 on the categories and 0.007 on the tags, and removing any one component costs 0.001 to 0.003 on at least one benchmark. The families make different errors: trees split on single statistics, the MLP combines all features smoothly and learns from unlabelled charts through the teacher, and the encoders see the order of events, which no chart-level feature fully describes. The neural students also see far more charts: every non-test chart enters their training through the teacher, while a boosted head sees only the \num{3200} to \num{7600} charts labelled for its task.
+
+\subsection{Reading features and the \SV{} heads}\label{sec:res-reading}
+The \SV{} categories depend on what the player sees. On Memo, the boosted component with the reading features reaches \apMemoBoostSv{} AP against \apMemoBoostNoSv{} without them, and the ensemble \apMemoEns{} against \apMemoNoSv{}; over the five \SV{} heads this is the difference between \catEns{} and \catNoSv{} on the category mean (\cref{tab:v2-components}, last row). Reading is already well predicted by the scroll-speed statistics (\apReadingBase{} for gbm+win) and changes little. Memo remains the noisiest category: it has 43 positives, 26 of them tournament charts, and the AP of single wide \& deep runs ranges from 0.45 to 0.54 across seeds (quadstream: 0.10 to 0.19), a spread of about $\pm0.004$ on a benchmark mean.
+
+% =====================================================================
+\section{Discussion and limitations}\label{sec:discussion}
+\paragraph{Labels limit the system.} The least accurate and least stable tasks are those with the fewest labels: Memo, quadstream, high and low SV and LN inverse each have fewer than 250 strict positives. More votes or sub-slot labels for these skillsets are the most direct improvement, more than further model capacity: the four components differ in architecture far more than in accuracy.
+
+\paragraph{Crowd labels.} User tags are a noisy proxy for what a pooler means by a skillset. Voters see a chart's existing top tags, so votes may herd; popular charts are over-represented among the strict negatives, which require eight votes; and some tags carry community-specific meanings, as \utag{skillset/reading} shows. Relaxed labels use partially voted charts at half weight; an estimate of the labelling propensity \citep{elkan2008pu,bekker2020pu} or a model of voter agreement could use them better.
+
+\paragraph{Choices made on the evaluation folds.} The ensemble has no fitted weights, but two design choices were made while looking at cross-validated scores: which feature families the components use, and the reading-feature boosted head for the five \SV{} heads. Both are coarse (one decision for a family of heads, not per task), but the reported means are slightly optimistic for a new sample of charts.
+
+\paragraph{Domain shift.} The heads are trained mostly on ranked charts and applied to unranked requests. Tournament customs are closer to requests than ranked charts are, and the category labels include them, but we have no labelled sample of requests themselves.
+
+\paragraph{Cost.} The deep components need a GPU to train but not to predict. The MLP student alone reaches \catMlp{} / \tagMlp{}, most of the ensemble's gain over the reference, and runs on a CPU in milliseconds; it is the natural model when the ensemble is too heavy for a service.
+
+% =====================================================================
+\section{Conclusion}
+osu!mania charts can be described automatically in the vocabulary reviewers and tournament organisers use, from public data alone. Official mappools provide expert slot labels, and a boosted model on 71 interpretable statistics reproduces them with 98.1\% accuracy under song-grouped cross-validation, against 88.5\% for slotting rules. Crowd-voted user tags, read as positive--unlabelled data with strict and relaxed thresholds, supervise 11 reviewer categories and 20 tags. An ensemble of boosted heads, a distilled MLP and two event encoders pretrained on the unlabelled corpus reaches a mean AP of \catEns{} and \tagEns{}, $\catGain$ and $\tagGain$ above the best boosted head, without any model seeing a test song. Window-level and transition-level descriptions of the chart, and reading features computed from the scroll position, make section-level and scroll-speed skillsets learnable. The encoders' attention weights already locate skillsets in time; evaluating those timestamps, and evaluating on labelled ranking requests, are the next steps.
+
+\paragraph{Acknowledgements.} We thank the organisers of the osu!mania tournaments whose mappools are documented on the osu! wiki, the players who vote user tags, and the Etterna developers for MinaCalc.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\clearpage
+\onecolumn
+\appendix
+\section{Chart statistics}\label{app:features}
+\input{tables/features.tex}
+
+\section{Reading features}\label{app:reading}
+\input{tables/reading.tex}
+
+\section{Hyperparameters}\label{app:hparams}
+\input{tables/hparams.tex}
+
+\end{document}

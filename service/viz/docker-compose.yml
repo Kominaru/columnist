@@ -1,0 +1,19 @@
+# Portainer stack / docker compose for Pattern Lens.
+#   docker compose -f service/viz/docker-compose.yml up -d --build     (from the repo root)
+# Cloudflare Tunnel: point the public hostname at http://pattern-lens:8770 if cloudflared shares a Docker
+# network with this container, else at http://<nas-ip>:8770.
+services:
+  pattern-lens:
+    build:
+      context: ../..
+      dockerfile: service/viz/Dockerfile
+    image: pattern-lens:latest
+    container_name: pattern-lens
+    restart: unless-stopped
+    ports:
+      - "8770:8770"
+    environment:
+      KEEP_HOURS: "6"
+      MAX_UPLOAD_MB: "80"
+    tmpfs:
+      - /tmp/osu-viz:size=1g,uid=1000

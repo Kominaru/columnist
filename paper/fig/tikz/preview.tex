@@ -1,0 +1,17 @@
+\documentclass[border=4pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{mathptmx}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc,decorations.pathreplacing,shapes.misc,matrix}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\newcommand{\RC}{\textsc{rc}}\newcommand{\LN}{\textsc{ln}}\newcommand{\HB}{\textsc{hb}}\newcommand{\SV}{\textsc{sv}}
+\newcommand{\utag}[1]{\texttt{\small #1}}
+\input{style.tex}
+\providecommand{\cref}[1]{\S\,#1}\providecommand{\nCharts}{36{,}509}
+\begin{document}\newlength{\cw}
+\input{\fig}
+\end{document}

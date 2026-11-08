@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About · Columnist</title>
+<meta name="description" content="Columnist: a foundation model for osu!mania 4K charts. Downloads, model card and citation.">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .nav { display: flex; gap: 6px; margin-left: auto; }
+  .nav a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 9px; border: 1px solid transparent; }
+  .nav a.on, .nav a:hover { color: var(--text); border-color: var(--line); background: var(--card); }
+  main { max-width: 760px; margin: 28px auto; padding: 0 16px; line-height: 1.55; }
+  h1 { font-size: 26px; margin: 0 0 6px; } h2 { font-size: 18px; margin-top: 26px; }
+  a { color: var(--accent2); } .card { padding: 12px 16px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin: 10px 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>Columnist</b><span class="sub">osu!mania 4K</span></div>
+  <nav class="nav"><a href="/">Player &amp; patterns</a><a href="/similar">Similar charts</a><a href="/difficulty">Difficulty</a><a href="/about" class="on">About</a></nav>
+</header>
+<main>
+  <h1>Columnist</h1>
+  <p>Columnist is a foundation model for osu!mania 4K charts. It is pretrained on unlabelled charts and then adapted to specific tasks: pattern classification, per-note pattern readout (the player page), and chart similarity (the similar-charts page).</p>
+  <h2>Downloads</h2>
+  <div class="card">Models: <a id="hf-models" href="#">Hugging Face (models)</a> · Data: <a id="hf-data" href="#">Hugging Face (dataset)</a> · Code: <a id="gh" href="#">GitHub</a></div>
+  <h2>What the data is</h2>
+  <p>The released data is chart ids, labels and sources. No .osu files, replays or audio are redistributed. Charts remain the property of their mappers. Use of osu! data complies with fair research use.</p>
+  <h2>Limits</h2>
+  <p>4K only. No snap or BPM-grid information is used. Long-note patterns are the weakest area. This is a research tool and not an official osu! tool; it must not be used to make Beatmap Nominator decisions on its own.</p>
+  <h2>Cite</h2>
+  <div class="card"><code>Komi. Columnist: a foundation model for osu!mania charts. 2026.</code></div>
+</main>
+</body>
+</html>

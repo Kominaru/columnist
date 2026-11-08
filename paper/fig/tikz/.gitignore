@@ -1,0 +1,4 @@
+prev_*
+*.aux
+*.log
+pertask_prev.tex

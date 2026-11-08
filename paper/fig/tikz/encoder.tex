@@ -1,0 +1,52 @@
+\begin{tikzpicture}[
+  blk/.style={box, draw=deep, fill=deep!7, minimum height=1.25cm},
+  io/.style={box, fill=faint!60, minimum height=1.25cm},
+  aux/.style={box, draw=sup, fill=sup!7, dashed, minimum height=0.8cm, font=\scriptsize},
+  wd/.style={box, draw=model, fill=model!7, minimum height=0.8cm},
+  dim/.style={lbl, font=\tiny, text=muted},
+  sarr/.style={arr, draw=sup, dashed}]
+% ---------- main path ----------
+\node[io, text width=1.45cm] (x) at (0,0) {events\\{\scriptsize $L\times44$}};
+\node[blk, text width=1.75cm] (emb) at (2.25,0) {linear $44{\to}64$\\{\scriptsize + key-count embedding}};
+\node[blk, text width=2.35cm] (conv) at (5.0,0) {$6\times$ residual block\\{\scriptsize GroupNorm, conv $k{=}3$,\\dilation $1,2,\dots,32$, GLU}};
+\node[blk, text width=1.95cm] (pool) at (7.95,0) {window pooling\\{\scriptsize mean $\Vert$ max over 4\,s, linear, LN}};
+\node[blk, text width=1.95cm] (tf) at (10.55,0) {transformer $\times2$\\{\scriptsize 4 heads, pre-norm, + position}};
+\node[blk, text width=2.0cm] (mil) at (13.15,0) {gated attention\\pooling per task\\{\scriptsize $a_{\tau w}$, $z_\tau=\sum_w a_{\tau w}h_w$}};
+\node[circle, draw=muted, inner sep=1pt, font=\footnotesize] (plus) at (14.85,0) {$+$};
+\node[lbl, right, font=\footnotesize, text=black] (out) at (15.2,0) {$\sigma\to p_\tau$};
+\draw[arr] (x) -- (emb);
+\draw[arr] (emb) -- node[dim, above] {$L\times64$} (conv);
+\draw[arr] (conv) -- node[dim, above] {$h_e$} (pool);
+\draw[arr] (pool) -- node[dim, above] {$W\times64$} (tf);
+\draw[arr] (tf) -- node[dim, above] {$h_w$} (mil);
+\draw[arr] (mil) -- node[dim, above] {logit} (plus);
+\draw[arr] (plus) -- (out);
+% receptive field inset under the conv stack
+\begin{scope}[shift={(3.3,-1.15)}]
+\foreach \i in {0,...,16} \fill[muted!60] (\i*0.13,0) circle (0.8pt);
+\foreach \d/\h in {1/0.12, 2/0.2, 4/0.3, 8/0.42} {
+  \draw[deep!70, line width=0.4pt] ({(16-\d)*0.13},0) .. controls ({(16-\d*0.5)*0.13},\h) .. ({16*0.13},0);
+}
+\node[dim, anchor=north, align=center] at (1.05,-0.05) {receptive field: 127 events};
+\end{scope}
+% ---------- wide path ----------
+\node[io, text width=2.9cm, minimum height=0.8cm] (wfeat) at (8.6,2.1) {{\scriptsize statistics, windows, transitions, reading, MinaCalc}};
+\node[wd, text width=1.95cm] (wmlp) at (12.0,2.1) {wide MLP\\{\scriptsize $128{\to}64{\to}35$}};
+\draw[arr] (wfeat) -- (wmlp);
+\draw[arr, draw=model] (wmlp.east) -| node[lbl, right, pos=0.75, text=model, align=left] {dropped for\\50\% of charts\\in training} (plus.north);
+% ---------- stage-1 objectives ----------
+\node[aux, text width=2.35cm] (mev) at (5.85,-2.35) {masked events\\predict head/tail bits and gap};
+\node[aux, text width=2.15cm] (mwin) at (8.45,-2.35) {masked windows\\predict 17 window statistics};
+\node[aux, text width=2.35cm] (stats) at (11.0,-2.35) {mean $\Vert$ max of $h_w$\\predict 260 chart and window statistics};
+\node[aux, solid, text width=1.65cm] (slot) at (13.6,-2.35) {mean of $h_w$\\slot (4 classes), both stages};
+\draw[sarr] (conv.south -| mev.north) -- (mev.north);
+\draw[sarr] (tf.south) ++(-0.4,0) -- ++(0,-0.35) -| (mwin.north);
+\draw[sarr] (tf.south) ++(0.3,0) -- ++(0,-0.6) -| (stats.north);
+\draw[sarr] (tf.south) ++(0.3,0) -- ++(0,-0.6) -| (slot.north);
+% masking inputs
+\node[lbl, text=sup!70!black, align=center] (m1) at (2.25,1.3) {15\% of events\\replaced by $m_e$};
+\draw[sarr] (m1) -- (emb.north);
+\node[lbl, text=sup!70!black, align=center] (m2) at (9.25,1.05) {15\% of windows\\replaced by $m_w$};
+\draw[sarr] (m2.south) -- (9.25,0.05);
+\node[lbl, text=sup!70!black, anchor=east, align=right] at (4.5,-2.35) {stage 1 only\\(all non-test charts)};
+\end{tikzpicture}

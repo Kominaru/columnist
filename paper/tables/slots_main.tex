@@ -1,0 +1,15 @@
+\begin{table*}[t]
+\centering\small
+\caption{Slot classification on 4{,}029 tournament charts (5-fold CV grouped by song). Brackets: 95\% cluster-bootstrap intervals over songs. The accuracy gain is 9.6 points [8.6, 10.6].}
+\label{tab:slots}
+\begin{tabular}{lcccccccc}
+\toprule
+& & & \multicolumn{4}{c}{F1 per slot} & \multicolumn{2}{c}{accuracy by keys} \\
+\cmidrule(lr){4-7}\cmidrule(lr){8-9}
+Method & Accuracy (\%) & Macro-F1 & \RC & \LN & \HB & \SV & 4K & 7K \\
+\midrule
+Rule baseline & 88.5 [87.5, 89.4] & 0.844 [0.831, 0.856] & 0.995 & 0.843 & 0.566 & 0.970 & 88.6 & 89.0 \\
+Gradient boosting & 98.1 [97.7, 98.5] & 0.978 [0.973, 0.983] & 0.994 & 0.977 & 0.951 & 0.991 & 98.1 & 98.1 \\
+\bottomrule
+\end{tabular}
+\end{table*}

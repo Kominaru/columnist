@@ -1,0 +1,53 @@
+\begin{tikzpicture}[
+  feat/.style={box, minimum width=3.05cm, minimum height=0.52cm, fill=faint!60},
+  mdl/.style={box, minimum width=2.75cm, minimum height=0.85cm, draw=model, fill=model!7},
+  dmdl/.style={mdl, draw=deep, fill=deep!7},
+  sup/.style={box, draw=sup, fill=sup!8},
+  sarr/.style={arr, draw=sup, line width=0.7pt}]
+% input and parsing
+\node[box, text width=1.5cm, minimum height=1.45cm] (osu) at (0,0.6) {\texttt{.osu} chart\\[2pt]{\scriptsize notes $(t_i,e_i,c_i)$,\\timing points}};
+\node[box, text width=2.05cm, minimum height=1.45cm] (parse) at (2.5,0.6) {rows $r_j$, gaps $g_j$,\\long notes,\\scroll speed $s(t)$,\\position $x(t)$};
+% features
+\node[feat] (stats) at (5.75,2.6) {71 chart statistics};
+\node[feat] (win)   at (5.75,1.95) {window statistics (189)};
+\node[feat] (pat)   at (5.75,1.3) {row transitions (333)};
+\node[feat] (read)  at (5.75,0.65) {reading features (22)};
+\node[feat] (msd)   at (5.75,0.0) {MinaCalc ratings (15)};
+\node[feat, minimum height=0.8cm, align=center] (tok) at (5.75,-1.45) {event tokens, $L\times 44$};
+\begin{scope}[on background layer]
+\node[draw=muted!40, dashed, rounded corners=3pt, fit=(stats)(msd), inner sep=4pt] (fbox) {};
+\end{scope}
+% models
+\node[mdl] (slot) at (9.45,3.85) {slot classifier\\{\scriptsize $p(\RC,\LN,\HB,\SV)$}};
+\node[mdl] (boost) at (9.45,2.1) {boosted heads\\{\scriptsize 5 input/label variants}};
+\node[mdl] (mlp) at (9.45,0.8) {MLP student\\{\scriptsize multi-task}};
+\node[dmdl] (deep) at (9.45,-0.55) {deep encoder\\{\scriptsize CNN, transformer, MIL}};
+\node[dmdl] (wide) at (9.45,-1.85) {deep encoder\\{\scriptsize + wide path}};
+\begin{scope}[on background layer]
+\node[draw=sup!70, dashed, rounded corners=3pt, fit=(boost)(wide), inner sep=5pt] (frame) {};
+\end{scope}
+\node[lbl, text=sup!70!black, anchor=north] at (frame.south) {trained per fold (\cref{fig:protocol})};
+% supervision
+\node[sup, text width=2.3cm] (pools) at (5.75,3.85) {tournament slots\\{\scriptsize 4{,}029 charts}};
+\node[sup, text width=3.2cm] (tags) at (13.9,3.85) {user-tag votes, pool sub-slots\\{\scriptsize strict and relaxed labels,\\fold-$k$ teacher targets}};
+% ensemble and output
+\node[circle, draw=model, fill=model!12, inner sep=1.5pt, font=\footnotesize] (mean) at (12.75,0.15) {mean};
+\node[box, text width=2.0cm, minimum height=1.3cm] (out) at (14.95,0.15) {11 categories,\\20 user tags\\{\scriptsize (and slot, TB flag,\\section timestamps)}};
+% arrows: parsing and features
+\draw[arr] (osu) -- (parse);
+\draw[arr] (parse.east) -- ++(0.35,0) |- (fbox.west);
+\draw[arr] (parse.east) -- ++(0.35,0) |- (tok.west);
+\draw[arr] (stats.east) -- ++(0.35,0) |- (slot.west);
+\draw[arr] (boost.west -| fbox.east) -- (boost.west);
+\draw[arr] (mlp.west -| fbox.east) -- (mlp.west);
+\draw[arr] ([yshift=-1.5mm]msd.east -| fbox.east) -- ++(0.55,0) |- ([yshift=1.3mm]wide.west);
+\draw[arr] (tok.east) -- ++(0.35,0) |- (deep.west);
+\draw[arr] (tok.east) -- ++(0.35,0) |- ([yshift=-1.3mm]wide.west);
+\draw[arr] (slot) -- node[lbl, left, pos=0.35] {slot probabilities} (boost);
+% supervision arrows
+\draw[sarr] (pools) -- (slot);
+\draw[sarr] (tags.south) |- ([yshift=-3mm]frame.north east);
+% ensemble arrows
+\foreach \m in {boost, mlp, deep, wide} \draw[arr, draw=model] (\m.east) -- ++(1.05,0) |- (mean.west);
+\draw[arr] (mean) -- (out);
+\end{tikzpicture}

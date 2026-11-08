@@ -1,0 +1,24 @@
+\begin{table}[H]
+\centering\footnotesize
+\caption{The 22 reading features (\cref{sec:reading}). $v=(T-o(T))/H$ is a row's visible time in units of $H=\SI{600}{ms}$; $r=\log(\Delta x/\Delta t)$ the log ratio of on-screen to time gap between consecutive rows.}
+\label{tab:reading}
+\setlength\tabcolsep{4pt}
+\begin{tabular}{p{0.3\textwidth}p{0.62\textwidth}}
+\toprule
+Features & Definition \\
+\midrule
+\texttt{rd\_vis\_p5/p25/p50/p95} & percentiles of $v$ \\
+\texttt{rd\_vis\_short/sudden/long} & share of rows with $v<0.5$, $v<0.25$, $v>2$ \\
+\texttt{rd\_vis\_logstd} & std of $\log v$ \\
+\texttt{rd\_gap\_logstd/p5/p95} & std and percentiles of $r$ \\
+\texttt{rd\_stacked/spread} & share of row pairs with $\Delta x/\Delta t<0.2$, $>3$ \\
+\texttt{rd\_gap\_jitter} & mean $|r_{j+1}-r_j|$ \\
+\texttt{rd\_hit\_speed\_std} & std of $\log s$ at hit times \\
+\texttt{rd\_hit\_speed\_local\_std} & the same within 2\,s blocks, averaged \\
+\texttt{rd\_moving\_changes\_ps/frac} & speed changes ($|\Delta\log s|>0.05$) while the next row is visible, per second and as a share of changes \\
+\texttt{rd\_teleports\_pm} & segments with $s>4$, $<\SI{80}{ms}$, while a row is visible, per minute \\
+\texttt{rd\_freezes\_pm} & segments with $s<0.1$, $>\SI{150}{ms}$, while a row is visible, per minute \\
+\texttt{rd\_crowd\_ratio\_p5/p95} & rows on screen at once relative to constant scroll, percentiles \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,63 @@
+\begin{tikzpicture}[
+  tc/.style={draw=muted!45, minimum size=0.19cm, inner sep=0pt},
+  brace/.style={decorate, decoration={brace, amplitude=3pt}, draw=muted, line width=0.5pt}]
+\def\dy{0.52}
+% ---------- the chart ----------
+\fill[faint!50] (-0.3,-0.35) rectangle (1.8,{5*\dy+0.35});
+\foreach \c in {0,...,3} {\draw[muted!25] ({\c*0.5},-0.35) -- ({\c*0.5},{5*\dy+0.35}); \node[lbl] at ({\c*0.5},-0.55) {\c};}
+\draw[lnbody] (0.31,{1*\dy}) rectangle (0.69,{4*\dy});
+\foreach \e/\cs in {0/{0,2}, 1/{1}, 2/{3}, 3/{0}, 5/{2,3}} \foreach \c in \cs \node[note] at ({\c*0.5},{\e*\dy}) {};
+\node[note, fill=white] at (0.5,{4*\dy}) {};
+\node[lbl, align=center] at (0.75,-1.0) {4K chart};
+\draw[->, muted] (-0.6,-0.35) -- (-0.6,{5*\dy+0.4}) node[lbl, above] {$t$};
+% ---------- event rows ----------
+\foreach \e in {0,...,5} {
+  \draw[muted!50, densely dotted] (1.85,{\e*\dy}) -- (2.75,{\e*\dy});
+  \node[lbl, anchor=east] at (3.0,{\e*\dy}) {$e_{\the\numexpr\e+1\relax}$};
+}
+% ---------- column slots: 10 x (head, tail, held) ----------
+\def\xo{3.15}
+\newcommand{\slotx}[2]{\xo+#1*0.64+#2*0.19}
+\foreach \e in {0,...,5} \foreach \s in {0,...,9} \foreach \c in {0,1,2} {
+  \pgfmathsetmacro{\xx}{\slotx{\s}{\c}}
+  \ifnum\s<3 \node[tc, fill=faint] at (\xx,{\e*\dy}) {};
+  \else\ifnum\s>6 \node[tc, fill=faint] at (\xx,{\e*\dy}) {};
+  \else \node[tc] at (\xx,{\e*\dy}) {}; \fi\fi
+}
+% ones: event / slot / channel (0 head, 1 tail, 2 held); 4K column c sits in slot c+3
+\foreach \e/\s/\c/\col in {0/3/0/muted!85, 0/5/0/muted!85, 1/4/0/muted!85, 2/6/0/muted!85, 2/4/2/model!45, 3/3/0/muted!85, 3/4/2/model!45, 4/4/1/rule!80, 5/5/0/muted!85, 5/6/0/muted!85} {
+  \pgfmathsetmacro{\xx}{\slotx{\s}{\c}}
+  \node[tc, fill=\col] at (\xx,{\e*\dy}) {};
+}
+\pgfmathsetmacro{\xa}{\slotx{0}{0}}\pgfmathsetmacro{\xb}{\slotx{9}{2}}
+\draw[brace] (\xa-0.1,{5*\dy+0.25}) -- (\xb+0.1,{5*\dy+0.25}) node[lbl, midway, above=3pt, align=center] {10 column slots $\times$ (head, tail, held), chart centred};
+\pgfmathsetmacro{\xm}{\slotx{3}{0}}\pgfmathsetmacro{\xn}{\slotx{6}{2}}
+\draw[brace, decoration={mirror}] (\xm-0.1,-0.55) -- (\xn+0.1,-0.55) node[lbl, midway, below=3pt] {columns 0--3};
+% legend
+\pgfmathsetmacro{\xq}{\slotx{0}{0}}
+\node[tc, fill=muted!85] (l1) at (\xq,-1.25) {}; \node[lbl, right] at (l1.east) {head (note starts)};
+\node[tc, fill=rule!80] (l2) at (\xq+2.3,-1.25) {}; \node[lbl, right] at (l2.east) {tail (LN released)};
+\node[tc, fill=model!45] (l3) at (\xq+4.6,-1.25) {}; \node[lbl, right] at (l3.east) {held (LN body passes)};
+% ---------- continuous channels ----------
+\def\xc{9.85}
+\foreach \e/\a/\b/\g in {0/90/25/80, 1/25/25/30, 2/25/25/30, 3/25/25/30, 4/25/25/30, 5/25/90/30} {
+  \node[tc, fill=sup!\a] at (\xc,{\e*\dy}) {};
+  \node[tc, fill=sup!\b] at (\xc+0.19,{\e*\dy}) {};
+  \node[tc, fill=sup!\g] at (\xc+0.38,{\e*\dy}) {};
+  \node[tc, fill=sup!35] at (\xc+0.57,{\e*\dy}) {};
+  \node[tc, fill=sup!40] at (\xc+0.76,{\e*\dy}) {};
+}
+\draw[brace] (\xc-0.1,{5*\dy+0.25}) -- (\xc+0.86,{5*\dy+0.25}) node[lbl, midway, above=3pt, align=center] {timing,\\scroll};
+\node[lbl, anchor=north] at (\xc+0.38,-0.25) {5 values};
+% snap one-hot
+\def\xs{11.0}
+\foreach \e in {0,...,5} \foreach \k in {0,...,8} \node[tc] at (\xs+\k*0.19,{\e*\dy}) {};
+\foreach \e/\k in {0/8, 1/2, 2/2, 3/2, 4/2, 5/2} \node[tc, fill=sup!80] at (\xs+\k*0.19,{\e*\dy}) {};
+\draw[brace] (\xs-0.1,{5*\dy+0.25}) -- (\xs+1.62,{5*\dy+0.25}) node[lbl, midway, above=3pt, align=center] {snap of\\$\Delta t_{\leftarrow}$};
+\node[lbl, anchor=north] at (\xs+0.76,-0.25) {9 one-hot};
+% window index
+\def\xw{13.2}
+\foreach \e/\w in {0/0, 1/0, 2/0, 3/0, 4/1, 5/1} \node[lbl] at (\xw,{\e*\dy}) {$\w$};
+\node[lbl, align=center] at (\xw,{5*\dy+0.62}) {window\\$\lfloor t/4\,\mathrm{s}\rfloor$};
+\draw[muted!50] (\xw-0.3,{3.5*\dy}) -- (\xw+0.3,{3.5*\dy});
+\end{tikzpicture}
