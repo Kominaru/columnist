@@ -3,7 +3,7 @@
 A foundation model for osu!mania 4K charts: pretrained on unlabelled charts, adapted to pattern classification, difficulty estimation, per-note pattern readout and chart similarity. No snap or BPM-grid information is used.
 
 - Website: https://columnist.quenlla.xyz (player with pattern readout, similar charts, difficulty)
-- Models and data: Hugging Face (links added at release)
+- Models: https://huggingface.co/Quenlla/columnist · Data: https://huggingface.co/datasets/Quenlla/columnist-data · Code: https://github.com/Kominaru/columnist
 - Licence: Apache-2.0 (code); CC BY 4.0 (weights, labels, model card). Charts remain the property of their mappers and are not redistributed. Use of osu! data complies with fair research use.
 - Cards: `release/MODEL_CARD.md`, `release/DATA_CARD.md`
 
